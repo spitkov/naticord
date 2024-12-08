@@ -92,7 +92,6 @@ namespace Naticord
         {
             string result = string.Empty;
 
-            // Check if task is canceled
             if (cts.Token.IsCancellationRequested)
                 return result;
 
@@ -111,7 +110,6 @@ namespace Naticord
 
             lastMessageAuthor = name;
 
-            // Check if task is canceled
             if (cts.Token.IsCancellationRequested)
                 return result;
 

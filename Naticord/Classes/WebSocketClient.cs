@@ -250,8 +250,6 @@ namespace Naticord
                 {
                     string author = (string)data["author"]?["global_name"] ?? (string)data["author"]?["username"];
                     string content = (string)data["content"];
-                    parentDMForm.AddMessage(author, content, "said", null, null, true, true);
-                    parentDMForm.Invoke((MethodInvoker)(() => parentDMForm.ScrollToBottom()));
                 }
             }
 

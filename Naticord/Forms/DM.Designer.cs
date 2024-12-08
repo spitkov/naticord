@@ -32,12 +32,12 @@ namespace Naticord
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(DM));
             this.messageBox = new System.Windows.Forms.TextBox();
-            this.chatBox = new System.Windows.Forms.WebBrowser();
             this.typingStatus = new System.Windows.Forms.Label();
             this.panel1 = new System.Windows.Forms.Panel();
-            this.profilepicturefriend = new System.Windows.Forms.PictureBox();
             this.label2 = new System.Windows.Forms.Label();
+            this.profilepicturefriend = new System.Windows.Forms.PictureBox();
             this.usernameLabel = new System.Windows.Forms.Label();
+            this.chatBox = new System.Windows.Forms.FlowLayoutPanel();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.profilepicturefriend)).BeginInit();
             this.SuspendLayout();
@@ -53,20 +53,6 @@ namespace Naticord
             this.messageBox.Size = new System.Drawing.Size(723, 19);
             this.messageBox.TabIndex = 6;
             this.messageBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.messageBox_KeyDown);
-            // 
-            // chatBox
-            // 
-            this.chatBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.chatBox.Location = new System.Drawing.Point(16, 101);
-            this.chatBox.MinimumSize = new System.Drawing.Size(17, 17);
-            this.chatBox.Name = "chatBox";
-            this.chatBox.ScriptErrorsSuppressed = true;
-            this.chatBox.Size = new System.Drawing.Size(723, 261);
-            this.chatBox.TabIndex = 9;
-            this.chatBox.Url = new System.Uri("", System.UriKind.Relative);
-            this.chatBox.WebBrowserShortcutsEnabled = false;
             // 
             // typingStatus
             // 
@@ -88,6 +74,18 @@ namespace Naticord
             this.panel1.Size = new System.Drawing.Size(758, 87);
             this.panel1.TabIndex = 11;
             // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.BackColor = System.Drawing.Color.Transparent;
+            this.label2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label2.ForeColor = System.Drawing.Color.White;
+            this.label2.Location = new System.Drawing.Point(88, 47);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(66, 15);
+            this.label2.TabIndex = 6;
+            this.label2.Text = "No status...";
+            // 
             // profilepicturefriend
             // 
             this.profilepicturefriend.BackColor = System.Drawing.Color.Transparent;
@@ -100,18 +98,6 @@ namespace Naticord
             this.profilepicturefriend.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.profilepicturefriend.TabIndex = 0;
             this.profilepicturefriend.TabStop = false;
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.BackColor = System.Drawing.Color.Transparent;
-            this.label2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.ForeColor = System.Drawing.Color.White;
-            this.label2.Location = new System.Drawing.Point(88, 47);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(66, 15);
-            this.label2.TabIndex = 6;
-            this.label2.Text = "No status...";
             // 
             // usernameLabel
             // 
@@ -126,15 +112,22 @@ namespace Naticord
             this.usernameLabel.TabIndex = 4;
             this.usernameLabel.Text = "username";
             // 
+            // chatBox
+            // 
+            this.chatBox.Location = new System.Drawing.Point(16, 101);
+            this.chatBox.Name = "chatBox";
+            this.chatBox.Size = new System.Drawing.Size(723, 261);
+            this.chatBox.TabIndex = 12;
+            // 
             // DM
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(754, 403);
+            this.Controls.Add(this.chatBox);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.typingStatus);
-            this.Controls.Add(this.chatBox);
             this.Controls.Add(this.messageBox);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "DM";
@@ -151,10 +144,10 @@ namespace Naticord
 
         private System.Windows.Forms.PictureBox profilepicturefriend;
         private System.Windows.Forms.TextBox messageBox;
-        private System.Windows.Forms.WebBrowser chatBox;
         public Label typingStatus;
         private Panel panel1;
         private Label label2;
         private Label usernameLabel;
+        private FlowLayoutPanel chatBox;
     }
 }

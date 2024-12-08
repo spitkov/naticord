@@ -11,6 +11,8 @@ using System.Drawing;
 using System.Net;
 using System.IO;
 using System.Linq;
+using Naticord.UserControls;
+using System.Diagnostics;
 
 namespace Naticord
 {
@@ -18,9 +20,6 @@ namespace Naticord
     {
         private const string DiscordApiBaseUrl = "https://discord.com/api/v9/";
         private WebSocketClient websocketClient;
-        private const string htmlStart = "<!DOCTYPE html><html><head><meta http-equiv=\"X-UA-Compatible\" content=\"edge\" ><style>* {background-color: transparent; font-family: \"Segoe UI\", sans-serif; font-size: 10pt; overflow-x: hidden;} p,strong,b,i,em,mark,small,del,ins,sub,sup,h1,h2,h3,h4,h5,h6 {display: inline;} img {width: auto; height: auto; max-width: 60% !important; max-height: 60% !important;} .spoiler {background-color: black; color: black; border-radius: 5px;} .spoiler:hover {background-color: black; color: white; border-radius: 5px;} .ping {background-color: #e6e8fd; color: #5865f3; border-radius: 5px;} .rich {width: 60%; border-style: solid; border-radius: 5px; border-width: 2px; border-color: black; padding: 10px;}</style></head><body>";
-        private string htmlMiddle = "";
-        private const string htmlEnd = "</body></html>";
         private readonly string AccessToken;
         public long ChatID { get; }
         public long FriendID { get; }
@@ -36,10 +35,85 @@ namespace Naticord
             FriendID = friendid;
             userPFP = userpfp;
             SetFriendInfo();
-            LoadMessages();
             WebSocketClient client = WebSocketClient.Instance(AccessToken);
-            // friend pfp
             SetProfilePictureShape(profilepicturefriend);
+            LoadMessages();
+        }
+
+        private async void LoadMessages()
+        {
+            try
+            {
+                dynamic messages = await GetApiResponse($"channels/{ChatID}/messages");
+
+                Console.WriteLine("Raw JSON Response: ");
+                Console.WriteLine(messages);
+
+                chatBox.AutoScroll = true;
+                chatBox.FlowDirection = FlowDirection.TopDown;
+                chatBox.WrapContents = false;
+                chatBox.Controls.Clear();
+
+                string lastAuthor = null;
+                MessageControl lastMessageControl = null;
+
+                for (int i = messages.Count - 1; i >= 0; i--)
+                {
+                    string author = Convert.ToString(messages[i].author.global_name) ?? Convert.ToString(messages[i].author.username);
+                    string content = Convert.ToString(messages[i].content);
+
+                    string authorId = Convert.ToString(messages[i].author.id);
+                    string avatarHash = Convert.ToString(messages[i].author.avatar);
+                    string avatarUrl = $"https://cdn.discordapp.com/avatars/{authorId}/{avatarHash}.png";
+
+                    if (!string.IsNullOrEmpty(author) && !string.IsNullOrEmpty(content))
+                    {
+                        if (author == lastAuthor && lastMessageControl != null)
+                        {
+                            lastMessageControl.MessageContent += Environment.NewLine + content;
+                            lastMessageControl.UpdateHeight();
+                        }
+                        else
+                        {
+                            lastMessageControl = new MessageControl
+                            {
+                                Username = author,
+                                MessageContent = content
+                            };
+
+                            lastMessageControl.SetProfilePicture(await LoadImageFromUrlAsync(avatarUrl));
+                            lastMessageControl.UpdateHeight();
+                            chatBox.Controls.Add(lastMessageControl);
+                            lastAuthor = author;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage("Failed to retrieve messages", ex);
+            }
+        }
+
+        private async Task<Image> LoadImageFromUrlAsync(string url)
+        {
+            try
+            {
+                using (var httpClient = new System.Net.Http.HttpClient())
+                {
+                    byte[] imageBytes = await httpClient.GetByteArrayAsync(url);
+                    using (var ms = new System.IO.MemoryStream(imageBytes))
+                    {
+                        return Image.FromStream(ms);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading image from URL: {url} - {ex.Message}");
+
+                return Properties.Resources.defaultpfp;
+            }
         }
 
         private void SetProfilePictureShape(PictureBox pictureBox)
@@ -62,204 +136,6 @@ namespace Naticord
             catch (Exception ex)
             {
                 ShowErrorMessage("Failed to retrieve user profile", ex);
-            }
-        }
-
-        private async void LoadMessages()
-        {
-            try
-            {
-                dynamic messages = await GetApiResponse($"channels/{ChatID}/messages");
-                Console.WriteLine(messages);
-                htmlMiddle = "";
-                for (int i = messages.Count - 1; i >= 0; i--)
-                {
-                    string author = messages[i].author.global_name ?? messages[i].author.username;
-                    string content = messages[i].content;
-                    var attachmentsFormed = new List<WebSocketClient.Attachment>();
-                    var embedsFormed = new List<WebSocketClient.Embed>();
-
-                    if (messages[i].attachments != null)
-                    {
-                        foreach (var attachment in messages[i].attachments)
-                        {
-                            attachmentsFormed.Add(new WebSocketClient.Attachment { URL = attachment.url, Type = attachment.content_type });
-                        }
-                    }
-                    if (messages[i].embeds != null)
-                    {
-                        foreach (var embed in messages[i].embeds)
-                        {
-                            embedsFormed.Add(new WebSocketClient.Embed { Type = embed?.type ?? "", Author = embed?.author?.name ?? "", AuthorURL = embed?.author?.url ?? "", Title = embed?.title ?? "", TitleURL = embed?.url ?? "", Description = embed?.description ?? "" });
-                        }
-                    }
-
-                    switch ((int)messages[i].type.Value)
-                    {
-                        case 7:
-                            AddMessage(author, "*Say hi!*", "slid in the server", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false);
-                            break;
-
-                        case 19:
-                            bool found = false;
-                            foreach (var message in messages)
-                            {
-                                if (message.id == messages[i].message_reference.message_id)
-                                {
-                                    string replyAuthor = message.author.global_name ?? message.author.username;
-                                    AddMessage(author, content, "replied", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false, replyAuthor, message.content.Value);
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (!found) AddMessage(author, content, "replied", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false, " ", "Unable to load message");
-                            break;
-
-                        default:
-                            AddMessage(author, content, "said", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false);
-                            break;
-                    }
-                }
-                chatBox.DocumentText = htmlStart + htmlMiddle + htmlEnd;
-                await Task.Delay(200);
-                ScrollToBottom();
-            }
-            catch (Exception ex)
-            {
-                ShowErrorMessage("Failed to retrieve messages", ex);
-            }
-        }
-
-        public void AddMessage(string name, string message, string action, WebSocketClient.Attachment[] attachments, WebSocketClient.Embed[] embeds, bool reload = true, bool scroll = true, string replyname = "", string replymessage = "")
-        {
-            if (name == lastMessageAuthor && action == "said")
-            {
-                htmlMiddle += $"<br><p>{DiscordMDToHtml(message)}</p>";
-            }
-            else if (action == "replied")
-            {
-                htmlMiddle += $"<br><em style=\"color: darkgray\">┌ @{replyname}: {DiscordMDToHtml(replymessage)}</em><br><strong>{name} {action}:</strong><br><p>{DiscordMDToHtml(message)}</p>";
-            }
-            else
-            {
-                htmlMiddle += $"<br><strong>{name} {action}:</strong><br><p>{DiscordMDToHtml(message)}</p>";
-            }
-            lastMessageAuthor = name;
-
-            foreach (var attachment in attachments)
-            {
-                chatBox.ScriptErrorsSuppressed = true;
-                if (attachment.Type.Contains("image"))
-                {
-                    htmlMiddle += $"<br><img src=\"{attachment.URL}\"></img>";
-                }
-                else if (attachment.Type.Contains("video"))
-                {
-                    htmlMiddle += $"<br><embed src=\"{attachment.URL}\" type=\"{attachment.Type}\" width=\"60%\" height=\"60%\">";
-                }
-            }
-
-            foreach (var embed in embeds)
-            {
-                if (embed.Type == "rich")
-                {
-                    htmlMiddle += $"<br><div class=\"rich\"><a style=\"color: black\" href=\"{embed.AuthorURL}\">{embed.Author}</a><br><br><a href=\"{embed.TitleURL}\">{embed.Title}</a><br><br><p>{embed.Description}</p></div>";
-                }
-            }
-
-            if (reload)
-            {
-                chatBox.DocumentText = htmlStart + htmlMiddle + htmlEnd;
-            }
-            if (scroll)
-            {
-                Task.Delay(100).ContinueWith(t => ScrollToBottom());
-            }
-        }
-
-        private string DiscordMDToHtml(string md)
-        {
-            var waitingToClose = new Stack<string>();
-            var html = new StringBuilder();
-
-            for (int i = 0; i < md.Length; i++)
-            {
-                switch (md[i])
-                {
-                    case '*':
-                        if (md.Length > i + 1 && md[i + 1] == '*')
-                        {
-                            ToggleHtmlTag(html, waitingToClose, "strong", "**");
-                            i++;
-                        }
-                        else
-                        {
-                            ToggleHtmlTag(html, waitingToClose, "em", "*");
-                        }
-                        break;
-
-                    case '_':
-                        if (md.Length > i + 1 && md[i + 1] == '_')
-                        {
-                            ToggleHtmlTag(html, waitingToClose, "u", "__");
-                            i++;
-                        }
-                        else
-                        {
-                            ToggleHtmlTag(html, waitingToClose, "em", "_");
-                        }
-                        break;
-
-                    case '~':
-                        if (md.Length > i + 1 && md[i + 1] == '~')
-                        {
-                            ToggleHtmlTag(html, waitingToClose, "strike", "~~");
-                            i++;
-                        }
-                        break;
-
-                    case '`':
-                        if (md.Length > i + 1 && md[i + 1] == '`')
-                        {
-                            html.Append("<code>");
-                            waitingToClose.Push("</code>");
-                            i++;
-                        }
-                        else
-                        {
-                            html.Append("<code>");
-                            waitingToClose.Push("</code>");
-                        }
-                        break;
-
-                    case '>':
-                        html.Append("<br>&gt;");
-                        break;
-
-                    default:
-                        html.Append(md[i]);
-                        break;
-                }
-            }
-
-            while (waitingToClose.Count > 0)
-            {
-                html.Append(waitingToClose.Pop());
-            }
-
-            return html.ToString();
-        }
-
-        private void ToggleHtmlTag(StringBuilder html, Stack<string> waitingToClose, string tag, string markdown)
-        {
-            if (waitingToClose.Count > 0 && waitingToClose.Peek() == $"</{tag}>")
-            {
-                html.Append(waitingToClose.Pop());
-            }
-            else
-            {
-                html.Append($"<{tag}>");
-                waitingToClose.Push($"</{tag}>");
             }
         }
 
@@ -321,29 +197,6 @@ namespace Naticord
             }
         }
 
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
-        {
-            if (keyData == (Keys.Control | Keys.V))
-            {
-                if (Clipboard.ContainsImage())
-                {
-                    try
-                    {
-                        Image clipboardImage = Clipboard.GetImage();
-                        byte[] imageBytes = ImageToBytes(clipboardImage);
-
-                        Task.Run(() => UploadImage(imageBytes)).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        ShowErrorMessage("Failed to upload image", ex);
-                    }
-                }
-            }
-
-            return base.ProcessCmdKey(ref msg, keyData);
-        }
-
         private async Task UploadImage(byte[] imageBytes)
         {
             try
@@ -391,23 +244,6 @@ namespace Naticord
         private void ShowErrorMessage(string message, Exception ex)
         {
             MessageBox.Show($"{message}\n\nError: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-
-        public void ScrollToBottom()
-        {
-            try
-            {
-                if (chatBox.Document != null && chatBox.Document.Body != null)
-                {
-                    chatBox.Document.OpenNew(true);
-                    chatBox.Document.Write(htmlStart + htmlMiddle + htmlEnd);
-                    chatBox.Document.Window.ScrollTo(0, chatBox.Document.Body.ScrollRectangle.Bottom);
-                }
-            }
-            catch (Exception)
-            {
-                // who tf cares bro it works
-            }
         }
 
         private void messageBox_KeyDown(object sender, KeyEventArgs e)
