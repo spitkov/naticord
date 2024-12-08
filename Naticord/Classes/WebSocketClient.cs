@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection.Emit;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Naticord.Classes;
 using Newtonsoft.Json.Linq;
 using WebSocketSharp;
 
@@ -22,6 +24,7 @@ namespace Naticord
         public WebSocket webSocket;
         private string accessToken;
         private string _chatId;
+        private List<Tuple<string, string>> userStatuses = new List<Tuple<string, string>>();
         private const SslProtocols Tls12 = (SslProtocols)0x00000C00;
         private bool websocketClosed = false;
 
@@ -106,10 +109,10 @@ namespace Naticord
                     switch (eventType)
                     {
                         case "READY":
-                            ParseReadyEvent(data);
+                            await ParseReadyEventAsync(data);
                             break;
                         case "USER_SETTINGS_UPDATE":
-                            ParseCustomStatusText(data);
+                            // ParseCustomStatusText(data);
                             break;
                         case "TYPING_START":
                             HandleTypingStartEvent(json["d"]);
@@ -184,46 +187,117 @@ namespace Naticord
                 parentServerForm.Invoke((MethodInvoker)(() => parentServerForm.ScrollToBottom()));
             }
         }
-
-        private void ParseReadyEvent(string data)
+        private async Task ParseReadyEventAsync(string data)
         {
             try
             {
                 var json = JObject.Parse(data);
-                var user = json["d"]?["user"];
-                string username = (string)user?["username"];
-                string discriminator = (string)user?["discriminator"];
-                Debug.WriteLine($"Logged in as {username}#{discriminator}");
+                var presences = json["d"]?["presences"];
 
-                string userStatusText = (string)json["d"]?["user"]?["presence"]?["status"] ?? "Unknown";
+                var statusTranslations = new Dictionary<string, string>
+                {
+                    { "dnd", "Do not disturb" },
+                    { "online", "Online" },
+                    { "idle", "Idle" },
+                    { "offline", "Offline" },
+                    { "invisible", "Invisible" }
+                };
+
+                UserStatusManager.ClearStatuses();
+
+                List<Task> statusTasks = new List<Task>();
+
+                foreach (var presence in presences)
+                {
+                    string userId = (string)presence["user"]?["id"];
+                    string userStatus = (string)presence["status"] ?? "Offline";
+
+                    // Translate status if applicable
+                    if (statusTranslations.ContainsKey(userStatus))
+                    {
+                        userStatus = statusTranslations[userStatus];
+                    }
+                    else
+                    {
+                        userStatus = "Offline";
+                    }
+
+                    var activities = presence["activities"] as JArray;
+                    string statusMessage = userStatus;
+
+                    var customStatus = activities?.FirstOrDefault(a => (int?)a["type"] == 4);
+                    bool hasEmoji = customStatus != null && (customStatus["state"]?.ToString().Contains("🙂") == true || customStatus["emoji"] != null);
+
+                    if (hasEmoji)
+                    {
+                        statusMessage = userStatus;
+                    }
+                    else if (customStatus != null)
+                    {
+                        string customState = (string)customStatus["state"];
+                        if (!string.IsNullOrEmpty(customState))
+                        {
+                            statusMessage = customState;
+                        }
+                    }
+
+                    if (activities != null)
+                    {
+                        foreach (var activity in activities)
+                        {
+                            int activityType = (int?)activity["type"] ?? -1;
+                            string activityStatus = (string)activity["name"];
+
+                            switch (activityType)
+                            {
+                                case 0: // Playing (Game)
+                                    statusMessage = $"Playing {activityStatus}";
+                                    break;
+
+                                case 1: // Streaming (e.g., watching a live stream)
+                                    statusMessage = $"Streaming {activityStatus}";
+                                    break;
+
+                                case 2: // Listening (e.g., Music, Spotify)
+                                    statusMessage = $"Listening to {activityStatus}";
+                                    break;
+
+                                case 3: // Watching (e.g., YouTube or a video)
+                                    statusMessage = $"Watching {activityStatus}";
+                                    break;
+
+                                default:
+                                    // Fallback to custom status if no activity type matched
+                                    if (string.IsNullOrEmpty(statusMessage))
+                                    {
+                                        statusMessage = customStatus != null ? (string)customStatus["state"] : "No current activity";
+                                    }
+                                    break;
+                            }
+
+                            // After processing the first valid activity, break out of the loop
+                            break;
+                        }
+                    }
+
+                    // Set the status message (either custom status or activity-based)
+                    var task = Task.Run(() => UserStatusManager.SetUserStatus(userId, statusMessage));
+                    statusTasks.Add(task);
+
+                    Debug.WriteLine($"User ID: {userId}");
+                    Debug.WriteLine($"Status: {statusMessage}");
+                }
+
+                await Task.WhenAll(statusTasks);
 
                 if (parentClientForm != null)
                 {
-                    UpdateFormLabel(parentClientForm.descriptionLabel, userStatusText);
+                    await parentClientForm.PopulateFriendsTabAsync();
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error parsing READY event: {ex.Message}");
-            }
-        }
-
-        private void ParseCustomStatusText(string data)
-        {
-            try
-            {
-                var json = JObject.Parse(data);
-                var customStatus = json["d"]?["custom_status"];
-                string statusText = (string)customStatus?["text"] ?? "";
-
-                if (parentClientForm != null)
-                {
-                    UpdateFormLabel(parentClientForm.descriptionLabel, statusText);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error parsing custom status: {ex.Message}");
             }
         }
 

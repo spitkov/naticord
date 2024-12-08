@@ -5,6 +5,11 @@ using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 using System.Drawing;
 using System.IO;
+using Naticord.UserControls;
+using Naticord.Classes;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Naticord
 {
@@ -29,14 +34,15 @@ namespace Naticord
             AccessToken = token;
             descriptionLabel = new Label();
             SetUserInfo();
-            PopulateFriendsTab();
+            PopulateFriendsTabAsync();
             PopulateServersTab();
             SetProfilePictureRegion();
             Settings settingsForm = new Settings();
 
             Application.EnableVisualStyles();
+            WebSocketClient client = WebSocketClient.Instance(AccessToken, null, null);
 
-            friendSearchBar.TextChanged += FriendsSearchBar_TextChanged;
+            //friendSearchBar.TextChanged += FriendsSearchBar_TextChanged;
             serverSearchBar.TextChanged += ServersSearchBar_TextChanged;
 
             InitializeContextMenus();
@@ -54,7 +60,7 @@ namespace Naticord
             friendsContextMenu = new ContextMenuStrip();
             serversContextMenu = new ContextMenuStrip();
 
-            ToolStripMenuItem copyFriendIdMenuItem = new ToolStripMenuItem("Copy ID");
+            /*ToolStripMenuItem copyFriendIdMenuItem = new ToolStripMenuItem("Copy ID");
             ToolStripMenuItem blockFriendMenuItem = new ToolStripMenuItem("Block");
             ToolStripMenuItem unfriendMenuItem = new ToolStripMenuItem("Unfriend");
             ToolStripMenuItem leaveGroupMenuItem = new ToolStripMenuItem("Leave Group");
@@ -78,24 +84,24 @@ namespace Naticord
             serversContextMenu.Items.Add(copyServerIdMenuItem);
             serversContextMenu.Items.Add(leaveServerMenuItem);
 
-            friendsList.ContextMenuStrip = friendsContextMenu;
+            friendsPanel.ContextMenuStrip = friendsContextMenu;
             serversList.ContextMenuStrip = serversContextMenu;
 
-            friendsList.MouseUp += FriendsList_MouseUp;
-            serversList.MouseUp += ServersList_MouseUp;
+            friendsPanel.MouseUp += FriendsList_MouseUp;
+            serversList.MouseUp += ServersList_MouseUp;*/
         }
 
-        private void FriendsList_MouseUp(object sender, MouseEventArgs e)
+        /*private void FriendsList_MouseUp(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
             {
-                ListViewItem item = friendsList.GetItemAt(e.X, e.Y);
+                ListViewItem item = friendsPanel.GetItemAt(e.X, e.Y);
                 if (item != null)
                 {
-                    friendsContextMenu.Show(friendsList, e.Location);
+                    friendsContextMenu.Show(friendsPanel, e.Location);
                 }
             }
-        }
+        }*/
 
         private void ServersList_MouseUp(object sender, MouseEventArgs e)
         {
@@ -109,11 +115,11 @@ namespace Naticord
             }
         }
 
-        private void CopyFriendIdMenuItem_Click(object sender, EventArgs e)
+        /*private void CopyFriendIdMenuItem_Click(object sender, EventArgs e)
         {
-            if (friendsList.SelectedItems.Count > 0)
+            if (friendsPanel.SelectedItems.Count > 0)
             {
-                string selectedFriend = friendsList.SelectedItems[0].Text;
+                string selectedFriend = friendsPanel.SelectedItems[0].Text;
                 long chatID = GetChatID(selectedFriend);
                 Clipboard.SetText(chatID.ToString());
             }
@@ -121,9 +127,9 @@ namespace Naticord
 
         private void BlockFriendMenuItem_Click(object sender, EventArgs e)
         {
-            if (friendsList.SelectedItems.Count > 0)
+            if (friendsPanel.SelectedItems.Count > 0)
             {
-                string selectedFriend = friendsList.SelectedItems[0].Text;
+                string selectedFriend = friendsPanel.SelectedItems[0].Text;
                 long friendID = GetFriendID(selectedFriend);
                 if (friendID >= 0)
                 {
@@ -135,13 +141,13 @@ namespace Naticord
                     MessageBox.Show("Unable to block this user.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        }
+        }*/
 
-        private void UnfriendMenuItem_Click(object sender, EventArgs e)
+        /*private void UnfriendMenuItem_Click(object sender, EventArgs e)
         {
-            if (friendsList.SelectedItems.Count > 0)
+            if (friendsPanel.SelectedItems.Count > 0)
             {
-                string selectedFriend = friendsList.SelectedItems[0].Text;
+                string selectedFriend = friendsPanel.SelectedItems[0].Text;
                 long friendID = GetFriendID(selectedFriend);
                 if (friendID >= 0)
                 {
@@ -157,9 +163,9 @@ namespace Naticord
 
         private void LeaveGroupMenuItem_Click(object sender, EventArgs e)
         {
-            if (friendsList.SelectedItems.Count > 0)
+            if (friendsPanel.SelectedItems.Count > 0)
             {
-                string selectedGroup = friendsList.SelectedItems[0].Text;
+                string selectedGroup = friendsPanel.SelectedItems[0].Text;
                 long groupID = GetGroupID(selectedGroup);
                 if (groupID >= 0)
                 {
@@ -171,7 +177,7 @@ namespace Naticord
                     MessageBox.Show("Unable to leave this group.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        }
+        }*/
 
         private void CopyServerIdMenuItem_Click(object sender, EventArgs e)
         {
@@ -228,12 +234,12 @@ namespace Naticord
         }
 
         // absolute garbo, dont touch this unless necessary (it will combust into pieces). if it compiles thats great and if it works thats even greater.
-        private void PopulateFriendsTab()
+        public async Task PopulateFriendsTabAsync()
         {
             try
             {
-                dynamic channels = GetApiResponse("users/@me/channels");
-                dynamic relationships = GetApiResponse("users/@me/relationships");
+                dynamic channels = await GetApiResponseAsync("users/@me/channels");
+                dynamic relationships = await GetApiResponseAsync("users/@me/relationships");
                 HashSet<long> blockedUsers = new HashSet<long>();
 
                 foreach (var relationship in relationships)
@@ -244,19 +250,30 @@ namespace Naticord
                     }
                 }
 
-                allFriends = new List<ListViewItem>();
                 HashSet<long> channelIds = new HashSet<long>();
+                friendsPanel.Controls.Clear();
+
+                List<Task> imageDownloadTasks = new List<Task>();
+
+                await Task.Delay(2000);
 
                 foreach (var channel in channels)
                 {
+                    if (channel == null || channel.id == null)
+                    {
+                        continue;
+                    }
+
                     long channelId = (long)channel.id;
-                    if (channelIds.Contains(channelId))
+                    if (channelIds.Contains(channelId) || channelId == 0)
                     {
                         continue;
                     }
 
                     string channelType = "";
                     string namesOrName = "";
+                    string statusContent = "";
+                    string userId = "";
 
                     switch ((int)channel.type)
                     {
@@ -268,14 +285,13 @@ namespace Naticord
                                 {
                                     string recipientName = (string)recipient.nickname ?? (string)recipient.global_name ?? (string)recipient.username;
                                     names.Add(recipientName);
+                                    userId = recipient.id.ToString();
                                 }
                                 namesOrName = string.Join(", ", names);
                                 channelType = "Direct Message";
 
-                                if (blockedUsers.Contains((long)channel.recipients[0].id))
-                                {
-                                    namesOrName += " - Blocked";
-                                }
+                                string status = UserStatusManager.GetUserStatus(userId);
+                                statusContent = string.IsNullOrEmpty(status) ? "Unknown" : status;
                             }
                             else
                             {
@@ -299,6 +315,7 @@ namespace Naticord
                                 {
                                     string recipientName = (string)recipient.nickname ?? (string)recipient.global_name ?? (string)recipient.username;
                                     names.Add(recipientName);
+                                    userId = recipient.id.ToString();
                                 }
                                 namesOrName = string.Join(", ", names);
                                 channelType = "Group Message";
@@ -306,7 +323,7 @@ namespace Naticord
                                 SaveGroupChatID(namesOrName, channelId);
                             }
 
-                            namesOrName += $" - {channel.recipients.Count} members";
+                            statusContent = $"{channel.recipients.Count} members";
 
                             if (!groupChatIDs.ContainsKey(namesOrName))
                             {
@@ -315,18 +332,71 @@ namespace Naticord
                             break;
                     }
 
-                    ListViewItem item = new ListViewItem(namesOrName);
-                    item.Tag = channelType;
-                    allFriends.Add(item);
-                    channelIds.Add(channelId);
+                    if (string.IsNullOrEmpty(namesOrName))
+                    {
+                        continue;
+                    }
+
+                    var friendControl = new FriendControl
+                    {
+                        Username = namesOrName,
+                        StatusContent = statusContent,
+                        Tag = channelId
+                    };
+
+                    if (channel.recipients != null && channel.recipients.Count > 0)
+                    {
+                        var recipient = channel.recipients[0];
+                        string avatarHash = recipient.avatar;
+
+                        if (!string.IsNullOrEmpty(avatarHash))
+                        {
+                            string avatarUrl = $"https://cdn.discordapp.com/avatars/{recipient.id}/{avatarHash}.png";
+
+                            var downloadTask = DownloadProfileImageAsync(avatarUrl, friendControl);
+                            imageDownloadTasks.Add(downloadTask);
+                        }
+                    }
+
+                    if (channel.type == 1 && !blockedUsers.Contains((long)channel.recipients[0].id))
+                    {
+                        string status = UserStatusManager.GetUserStatus(userId);
+                        friendControl.StatusContent = status;
+                    }
+
+                    if (!string.IsNullOrEmpty(friendControl.Username) && channelId != 0)
+                    {
+                        friendsPanel.Controls.Add(friendControl);
+                        friendControl.Location = new Point(0, friendsPanel.Controls.Count * friendControl.Height);
+                        channelIds.Add(channelId);
+                    }
                 }
 
-                friendsList.Items.Clear();
-                friendsList.Items.AddRange(allFriends.ToArray());
+                await Task.WhenAll(imageDownloadTasks);
             }
             catch (WebException ex)
             {
                 ShowErrorMessage("Failed to retrieve channel list", ex);
+            }
+        }
+
+        private async Task DownloadProfileImageAsync(string avatarUrl, FriendControl friendControl)
+        {
+            try
+            {
+                using (var httpClient = new HttpClient())
+                {
+                    var imageBytes = await httpClient.GetByteArrayAsync(avatarUrl);
+                    using (var memoryStream = new MemoryStream(imageBytes))
+                    {
+                        Image profileImage = Image.FromStream(memoryStream);
+                        friendControl.SetProfilePicture(profileImage);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to load profile picture: " + ex.Message);
             }
         }
 
@@ -447,6 +517,16 @@ namespace Naticord
             }
         }
 
+        private async Task<dynamic> GetApiResponseAsync(string endpoint)
+        {
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Authorization", AccessToken);
+                string jsonResponse = await client.GetStringAsync(DiscordApiBaseUrl + endpoint);
+                return Newtonsoft.Json.JsonConvert.DeserializeObject(jsonResponse);
+            }
+        }
+
         private void ShowErrorMessage(string message, Exception ex)
         {
             MessageBox.Show($"{message}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -464,12 +544,12 @@ namespace Naticord
             signin.Close();
         }
 
-        private void friendsList_DoubleClick(object sender, EventArgs e)
+        /*private void friendsList_DoubleClick(object sender, EventArgs e)
         {
-            if (friendsList.SelectedItems.Count > 0)
+            if (friendsPanel.SelectedItems.Count > 0)
             {
-                string selectedChannel = friendsList.SelectedItems[0].Text;
-                string channelType = friendsList.SelectedItems[0].Tag as string;
+                string selectedChannel = friendsPanel.SelectedItems[0].Text;
+                string channelType = friendsPanel.SelectedItems[0].Tag as string;
 
                 if (channelType == "Direct Message")
                 {
@@ -504,7 +584,7 @@ namespace Naticord
                     MessageBox.Show("Unknown channel type.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        }
+        }*/
 
         private void serversList_DoubleClick(object sender, EventArgs ex)
         {
@@ -530,10 +610,10 @@ namespace Naticord
             settingsForm.Show();
         }
 
-        private void FriendsSearchBar_TextChanged(object sender, EventArgs e)
+        /*private void FriendsSearchBar_TextChanged(object sender, EventArgs e)
         {
-            FilterItems(friendSearchBar.Text.ToLower(), allFriends, friendsList);
-        }
+            FilterItems(friendSearchBar.Text.ToLower(), allFriends, friendsPanel);
+        }*/
 
         private void ServersSearchBar_TextChanged(object sender, EventArgs e)
         {
@@ -547,7 +627,7 @@ namespace Naticord
             listView.Items.AddRange(filteredItems.ToArray());
         }
 
-        private void BlockUser(long userID)
+        /*private void BlockUser(long userID)
         {
             try
             {
@@ -557,7 +637,7 @@ namespace Naticord
                     var data = new System.Collections.Specialized.NameValueCollection();
                     data["type"] = "2";
                     webClient.UploadValues($"{DiscordApiBaseUrl}users/@me/relationships/{userID}", "PUT", data);
-                    friendsList.Items.Clear();
+                    friendsPanel.Items.Clear();
                     PopulateFriendsTab();
                 }
             }
@@ -575,7 +655,7 @@ namespace Naticord
                 {
                     webClient.Headers[HttpRequestHeader.Authorization] = AccessToken;
                     webClient.UploadValues($"{DiscordApiBaseUrl}users/@me/relationships/{userID}", "DELETE", new System.Collections.Specialized.NameValueCollection());
-                    friendsList.Items.Clear();
+                    friendsPanel.Items.Clear();
                     PopulateFriendsTab();
                 }
             }
@@ -593,7 +673,7 @@ namespace Naticord
                 {
                     webClient.Headers[HttpRequestHeader.Authorization] = AccessToken;
                     webClient.UploadValues($"{DiscordApiBaseUrl}channels/{groupID}", "DELETE", new System.Collections.Specialized.NameValueCollection());
-                    friendsList.Items.Clear();
+                    friendsPanel.Items.Clear();
                     PopulateFriendsTab();
                 }
             }
@@ -601,7 +681,7 @@ namespace Naticord
             {
                 ShowErrorMessage("Failed to leave group", ex);
             }
-        }
+        }*/
 
         private void LeaveServer(long serverID)
         {

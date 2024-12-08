@@ -95,6 +95,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\UserStatusManager.cs" />
     <Compile Include="Classes\WebSocketClient.cs" />
     <Compile Include="Forms\Group.cs">
       <SubType>Form</SubType>
@@ -192,6 +193,9 @@
     </Compile>
     <EmbeddedResource Include="Forms\Server.resx">
       <DependentUpon>Server.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\FriendControl.resx">
+      <DependentUpon>FriendControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControls\MessageControl.resx">
       <DependentUpon>MessageControl.cs</DependentUpon>

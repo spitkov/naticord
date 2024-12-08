@@ -15,6 +15,51 @@ namespace Naticord.UserControls
         public FriendControl()
         {
             InitializeComponent();
+            SetProfilePictureShape(profilepicture);
+        }
+
+        public string Username
+        {
+            get => usernameLabel.Text;
+            set
+            {
+                if (value.Length > 17)
+                {
+                    usernameLabel.Text = value.Substring(0, 17) + "...";
+                }
+                else
+                {
+                    usernameLabel.Text = value;
+                }
+            }
+        }
+
+        public string StatusContent
+        {
+            get => statusLabel.Text;
+            set
+            {
+                if (value.Length > 24)
+                {
+                    statusLabel.Text = value.Substring(0, 24).TrimEnd() + "...";
+                }
+                else
+                {
+                    statusLabel.Text = value;
+                }
+            }
+        }
+
+        public void SetProfilePicture(Image image)
+        {
+            profilepicture.Image = image;
+        }
+
+        private void SetProfilePictureShape(PictureBox pictureBox)
+        {
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddEllipse(0, 0, pictureBox.Width, pictureBox.Height);
+            pictureBox.Region = new Region(path);
         }
     }
 }

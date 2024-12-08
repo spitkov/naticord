@@ -31,15 +31,16 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Naticord));
             this.usernameLabel = new System.Windows.Forms.Label();
             this.descriptionLabel = new System.Windows.Forms.Label();
-            this.friendsList = new System.Windows.Forms.ListView();
             this.fsTabs = new System.Windows.Forms.TabControl();
             this.friendsTab = new System.Windows.Forms.TabPage();
             this.friendSearchBar = new System.Windows.Forms.TextBox();
             this.serversTab = new System.Windows.Forms.TabPage();
             this.serverSearchBar = new System.Windows.Forms.TextBox();
             this.serversList = new System.Windows.Forms.ListView();
-            this.profilepicture = new System.Windows.Forms.PictureBox();
             this.button1 = new System.Windows.Forms.Button();
+            this.profilepicture = new System.Windows.Forms.PictureBox();
+            this.richTextBox1 = new System.Windows.Forms.RichTextBox();
+            this.friendsPanel = new System.Windows.Forms.Panel();
             this.fsTabs.SuspendLayout();
             this.friendsTab.SuspendLayout();
             this.serversTab.SuspendLayout();
@@ -71,26 +72,6 @@
             this.descriptionLabel.TabIndex = 3;
             this.descriptionLabel.Text = "No status...";
             // 
-            // friendsList
-            // 
-            this.friendsList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.friendsList.BackColor = System.Drawing.Color.WhiteSmoke;
-            this.friendsList.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.friendsList.ForeColor = System.Drawing.SystemColors.WindowText;
-            this.friendsList.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
-            this.friendsList.HideSelection = false;
-            this.friendsList.LabelWrap = false;
-            this.friendsList.Location = new System.Drawing.Point(5, 32);
-            this.friendsList.Name = "friendsList";
-            this.friendsList.Size = new System.Drawing.Size(257, 332);
-            this.friendsList.Sorting = System.Windows.Forms.SortOrder.Ascending;
-            this.friendsList.TabIndex = 0;
-            this.friendsList.UseCompatibleStateImageBehavior = false;
-            this.friendsList.View = System.Windows.Forms.View.Tile;
-            this.friendsList.DoubleClick += new System.EventHandler(this.friendsList_DoubleClick);
-            // 
             // fsTabs
             // 
             this.fsTabs.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -106,8 +87,9 @@
             // 
             // friendsTab
             // 
+            this.friendsTab.Controls.Add(this.friendsPanel);
+            this.friendsTab.Controls.Add(this.richTextBox1);
             this.friendsTab.Controls.Add(this.friendSearchBar);
-            this.friendsTab.Controls.Add(this.friendsList);
             this.friendsTab.Location = new System.Drawing.Point(4, 22);
             this.friendsTab.Name = "friendsTab";
             this.friendsTab.Padding = new System.Windows.Forms.Padding(3);
@@ -161,6 +143,17 @@
             this.serversList.View = System.Windows.Forms.View.Tile;
             this.serversList.DoubleClick += new System.EventHandler(this.serversList_DoubleClick);
             // 
+            // button1
+            // 
+            this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.button1.Image = ((System.Drawing.Image)(resources.GetObject("button1.Image")));
+            this.button1.Location = new System.Drawing.Point(261, 6);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(24, 24);
+            this.button1.TabIndex = 5;
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // profilepicture
             // 
             this.profilepicture.BackColor = System.Drawing.Color.Transparent;
@@ -175,16 +168,21 @@
             this.profilepicture.TabIndex = 0;
             this.profilepicture.TabStop = false;
             // 
-            // button1
+            // richTextBox1
             // 
-            this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.button1.Image = ((System.Drawing.Image)(resources.GetObject("button1.Image")));
-            this.button1.Location = new System.Drawing.Point(261, 6);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(24, 24);
-            this.button1.TabIndex = 5;
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.richTextBox1.Location = new System.Drawing.Point(184, 140);
+            this.richTextBox1.Name = "richTextBox1";
+            this.richTextBox1.Size = new System.Drawing.Size(0, 0);
+            this.richTextBox1.TabIndex = 2;
+            this.richTextBox1.Text = "";
+            // 
+            // friendsPanel
+            // 
+            this.friendsPanel.AutoScroll = true;
+            this.friendsPanel.Location = new System.Drawing.Point(7, 32);
+            this.friendsPanel.Name = "friendsPanel";
+            this.friendsPanel.Size = new System.Drawing.Size(253, 332);
+            this.friendsPanel.TabIndex = 3;
             // 
             // Naticord
             // 
@@ -220,10 +218,11 @@
         private System.Windows.Forms.TabControl fsTabs;
         private System.Windows.Forms.TabPage friendsTab;
         private System.Windows.Forms.TabPage serversTab;
-        private System.Windows.Forms.ListView friendsList;
         private System.Windows.Forms.ListView serversList;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.TextBox friendSearchBar;
         private System.Windows.Forms.TextBox serverSearchBar;
+        private System.Windows.Forms.RichTextBox richTextBox1;
+        private System.Windows.Forms.Panel friendsPanel;
     }
 }
