@@ -200,6 +200,7 @@
             this.DoubleBuffered = true;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Naticord";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Naticord";
             this.fsTabs.ResumeLayout(false);
             this.friendsTab.ResumeLayout(false);

@@ -24,7 +24,7 @@ namespace Naticord.UserControls
             set
             {
                 messageContent.Text = value;
-                UpdateHeight(); // Update height whenever content changes
+                UpdateHeight();
             }
         }
 
@@ -46,15 +46,16 @@ namespace Naticord.UserControls
             {
                 using (Graphics g = CreateGraphics())
                 {
-                    // Measure the height required for the messageContent
-                    SizeF textSize = g.MeasureString(messageContent.Text, messageContent.Font, messageContent.Width);
+                    SizeF textSize = g.MeasureString(
+                        messageContent.Text,
+                        messageContent.Font,
+                        messageContent.MaximumSize.Width
+                    );
                     int requiredHeight = (int)Math.Ceiling(textSize.Height);
 
-                    // Adjust the height of the messageContent control
                     messageContent.Height = requiredHeight;
 
-                    // Update the height of the MessageControl to fit the new content
-                    Height = messageContent.Top + messageContent.Height + 10; // Add padding for aesthetics
+                    Height = messageContent.Top + messageContent.Height + 5;
                 }
             }
         }

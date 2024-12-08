@@ -47,7 +47,7 @@ namespace Naticord
             this.messageBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.messageBox.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.messageBox.Location = new System.Drawing.Point(16, 368);
+            this.messageBox.Location = new System.Drawing.Point(16, 369);
             this.messageBox.Multiline = true;
             this.messageBox.Name = "messageBox";
             this.messageBox.Size = new System.Drawing.Size(723, 19);
@@ -57,9 +57,11 @@ namespace Naticord
             // typingStatus
             // 
             this.typingStatus.AutoSize = true;
-            this.typingStatus.Location = new System.Drawing.Point(109, 384);
+            this.typingStatus.BackColor = System.Drawing.Color.Transparent;
+            this.typingStatus.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.typingStatus.Location = new System.Drawing.Point(13, 384);
             this.typingStatus.Name = "typingStatus";
-            this.typingStatus.Size = new System.Drawing.Size(0, 13);
+            this.typingStatus.Size = new System.Drawing.Size(0, 15);
             this.typingStatus.TabIndex = 10;
             // 
             // panel1
@@ -114,7 +116,7 @@ namespace Naticord
             // 
             // chatBox
             // 
-            this.chatBox.Location = new System.Drawing.Point(16, 101);
+            this.chatBox.Location = new System.Drawing.Point(16, 102);
             this.chatBox.Name = "chatBox";
             this.chatBox.Size = new System.Drawing.Size(723, 261);
             this.chatBox.TabIndex = 12;
@@ -131,6 +133,7 @@ namespace Naticord
             this.Controls.Add(this.messageBox);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "DM";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Naticord";
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
@@ -147,7 +150,7 @@ namespace Naticord
         public Label typingStatus;
         private Panel panel1;
         private Label label2;
-        private Label usernameLabel;
+        public Label usernameLabel;
         private FlowLayoutPanel chatBox;
     }
 }

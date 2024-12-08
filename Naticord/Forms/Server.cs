@@ -88,73 +88,6 @@ namespace Naticord
             }
         }
 
-        public async Task<string> AddMessage(string name, string message, string action, WebSocketClient.Attachment[] attachments, WebSocketClient.Embed[] embeds, bool reload = true, bool scroll = true, string replyname = "", string replymessage = "")
-        {
-            string result = string.Empty;
-
-            if (cts.Token.IsCancellationRequested)
-                return result;
-
-            if (name == lastMessageAuthor && action == "said")
-            {
-                htmlMiddle += "<br><p>" + await DiscordMDToHtml(message) + "</p>";
-            }
-            else if (action == "replied")
-            {
-                htmlMiddle += "<br><em style=\"color: darkgray\">┌ @" + replyname + ": " + await DiscordMDToHtml(replymessage) + "</em><br><strong>" + name + " " + action + ":</strong><br><p>" + await DiscordMDToHtml(message) + "</p>";
-            }
-            else
-            {
-                htmlMiddle += "<br><strong>" + name + " " + action + ":</strong><br><p>" + await DiscordMDToHtml(message) + "</p>";
-            }
-
-            lastMessageAuthor = name;
-
-            if (cts.Token.IsCancellationRequested)
-                return result;
-
-            if (attachments.Length > 0)
-            {
-                foreach (var attachment in attachments)
-                {
-                    if (cts.Token.IsCancellationRequested)
-                        return result;
-
-                    chatBox.ScriptErrorsSuppressed = true;
-
-                    if (attachment.Type.Contains("image"))
-                        htmlMiddle += "<br><img src=\"" + attachment.URL + "\"></img>";
-                    if (attachment.Type.Contains("video"))
-                        htmlMiddle += "<br><embed src=\"" + attachment.URL + "\" type=\"" + attachment.Type + "\" width=\"60%\" height=\"60%\">";
-                }
-            }
-
-            if (embeds.Length > 0)
-            {
-                foreach (var embed in embeds)
-                {
-                    if (cts.Token.IsCancellationRequested)
-                        return result;
-
-                    if (embed.Type == "rich")
-                        htmlMiddle += "<br><div class=\"rich\"><a style=\"color: black\" href=\"" + embed.AuthorURL + "\">" + embed.Author + "</a><br><br><a href=\"" + embed.TitleURL + "\">" + embed.Title + "</a><br><br><p>" + embed.Description + "</p></div>";
-                }
-            }
-
-            if (reload && !chatBox.IsDisposed)
-            {
-                chatBox.DocumentText = (htmlStart + htmlMiddle + htmlEnd).ToString();
-            }
-
-            if (scroll && !chatBox.IsDisposed)
-            {
-                ScrollToBottom();
-            }
-
-            return result;
-        }
-
-
         public void UpdateChatBox(string htmlContent)
         {
             if (chatBox.IsDisposed || this.IsDisposed)
@@ -366,87 +299,6 @@ namespace Naticord
             }
         }
 
-        private async Task LoadMessages(long channelID)
-        {
-            try
-            {
-                dynamic messages = await GetApiResponse($"channels/{channelID.ToString()}/messages");
-                htmlMiddle = "";
-
-                for (int i = messages.Count - 1; i >= 0; i--)
-                {
-                    string author = messages[i].author.global_name ?? messages[i].author.username;
-                    string content = messages[i].content;
-
-                    List<WebSocketClient.Attachment> attachmentsFormed = new List<WebSocketClient.Attachment>();
-                    List<WebSocketClient.Embed> embedsFormed = new List<WebSocketClient.Embed>();
-
-                    if (messages[i].attachments != null)
-                    {
-                        foreach (var attachment in messages[i].attachments)
-                        {
-                            attachmentsFormed.Add(new WebSocketClient.Attachment { URL = attachment.url, Type = attachment.content_type });
-                        }
-                    }
-
-                    if (messages[i].embeds != null)
-                    {
-                        foreach (var embed in messages[i].embeds)
-                        {
-                            embedsFormed.Add(new WebSocketClient.Embed
-                            {
-                                Type = embed?.type ?? "",
-                                Author = embed?.author?.name ?? "",
-                                AuthorURL = embed?.author?.url ?? "",
-                                Title = embed?.title ?? "",
-                                TitleURL = embed?.url ?? "",
-                                Description = embed?.description ?? ""
-                            });
-                        }
-                    }
-
-                    string messageResult = "";
-                    switch ((int)messages[i].type.Value)
-                    {
-                        case 7:
-                            messageResult = await AddMessage(author, "*Say hi!*", "slid in the server", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false);
-                            break;
-
-                        case 19:
-                            bool found = false;
-                            foreach (var message in messages)
-                            {
-                                if (message.id == messages[i].message_reference.message_id)
-                                {
-                                    string replyAuthor = message.author.global_name ?? message.author.username;
-                                    messageResult = await AddMessage(author, content, "replied", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false, replyAuthor, message.content.Value);
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (!found)
-                            {
-                                messageResult = await AddMessage(author, content, "replied", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false, " ", "Unable to load message");
-                            }
-                            break;
-
-                        default:
-                            messageResult = await AddMessage(author, content, "said", attachmentsFormed.ToArray(), embedsFormed.ToArray(), false, false);
-                            break;
-                    }
-
-                    htmlMiddle += messageResult;
-                }
-
-                chatBox.DocumentText = htmlStart + htmlMiddle + htmlEnd;
-                ScrollToBottom();
-            }
-            catch (WebException ex)
-            {
-                ShowErrorMessage("Failed to retrieve messages", ex);
-            }
-        }
-
         private void messageBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
@@ -584,8 +436,6 @@ namespace Naticord
                 if (channelID >= 0)
                 {
                     ChatID = channelID;
-                    LoadMessages(channelID);
-                    WebSocketClient client = WebSocketClient.Instance(AccessToken);
                 }
                 else MessageBox.Show("Unable to open this channel", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }

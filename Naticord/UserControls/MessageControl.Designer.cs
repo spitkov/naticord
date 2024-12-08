@@ -37,9 +37,9 @@
             // profilepicture
             // 
             this.profilepicture.Image = global::Naticord.Properties.Resources.defaultpfp;
-            this.profilepicture.Location = new System.Drawing.Point(7, 5);
+            this.profilepicture.Location = new System.Drawing.Point(0, 0);
             this.profilepicture.Name = "profilepicture";
-            this.profilepicture.Size = new System.Drawing.Size(50, 50);
+            this.profilepicture.Size = new System.Drawing.Size(40, 40);
             this.profilepicture.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.profilepicture.TabIndex = 0;
             this.profilepicture.TabStop = false;
@@ -48,7 +48,7 @@
             // 
             this.usernameLabel.AutoSize = true;
             this.usernameLabel.Font = new System.Drawing.Font("Segoe UI Semibold", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.usernameLabel.Location = new System.Drawing.Point(64, 10);
+            this.usernameLabel.Location = new System.Drawing.Point(47, 1);
             this.usernameLabel.Name = "usernameLabel";
             this.usernameLabel.Size = new System.Drawing.Size(76, 20);
             this.usernameLabel.TabIndex = 1;
@@ -56,13 +56,13 @@
             // 
             // messageContent
             // 
-            this.messageContent.AutoSize = true;
             this.messageContent.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.messageContent.Location = new System.Drawing.Point(65, 32);
+            this.messageContent.Location = new System.Drawing.Point(48, 21);
             this.messageContent.Name = "messageContent";
-            this.messageContent.Size = new System.Drawing.Size(96, 15);
+            this.messageContent.Size = new System.Drawing.Size(570, 19);
             this.messageContent.TabIndex = 2;
             this.messageContent.Text = "messageContent";
+            this.messageContent.UseCompatibleTextRendering = true;
             // 
             // MessageControl
             // 
@@ -72,7 +72,7 @@
             this.Controls.Add(this.usernameLabel);
             this.Controls.Add(this.profilepicture);
             this.Name = "MessageControl";
-            this.Size = new System.Drawing.Size(632, 60);
+            this.Size = new System.Drawing.Size(632, 40);
             ((System.ComponentModel.ISupportInitialize)(this.profilepicture)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();

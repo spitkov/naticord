@@ -35,7 +35,7 @@ namespace Naticord
             FriendID = friendid;
             userPFP = userpfp;
             SetFriendInfo();
-            WebSocketClient client = WebSocketClient.Instance(AccessToken);
+            WebSocketClient client = WebSocketClient.Instance(AccessToken, chatid.ToString(), parentDMForm: this);
             SetProfilePictureShape(profilepicturefriend);
             LoadMessages();
         }
@@ -56,15 +56,42 @@ namespace Naticord
 
                 string lastAuthor = null;
                 MessageControl lastMessageControl = null;
+                Dictionary<string, Image> avatarCache = new();
+
+                List<Task> imageLoadTasks = new();
+                Dictionary<int, Task<Image>> imageTasksByIndex = new();
+
+                for (int i = messages.Count - 1; i >= 0; i--)
+                {
+                    string authorId = Convert.ToString(messages[i].author.id);
+                    string avatarHash = Convert.ToString(messages[i].author.avatar);
+                    string avatarUrl = $"https://cdn.discordapp.com/avatars/{authorId}/{avatarHash}.png";
+
+                    if (!avatarCache.ContainsKey(authorId))
+                    {
+                        imageTasksByIndex[i] = LoadImageFromUrlAsync(avatarUrl);
+                    }
+                }
+
+                foreach (var kvp in imageTasksByIndex)
+                {
+                    try
+                    {
+                        avatarCache[Convert.ToString(messages[kvp.Key].author.id)] = await kvp.Value;
+                    }
+                    catch
+                    {
+                        avatarCache[Convert.ToString(messages[kvp.Key].author.id)] = Properties.Resources.defaultpfp;
+                    }
+                }
+
+                chatBox.SuspendLayout();
 
                 for (int i = messages.Count - 1; i >= 0; i--)
                 {
                     string author = Convert.ToString(messages[i].author.global_name) ?? Convert.ToString(messages[i].author.username);
                     string content = Convert.ToString(messages[i].content);
-
                     string authorId = Convert.ToString(messages[i].author.id);
-                    string avatarHash = Convert.ToString(messages[i].author.avatar);
-                    string avatarUrl = $"https://cdn.discordapp.com/avatars/{authorId}/{avatarHash}.png";
 
                     if (!string.IsNullOrEmpty(author) && !string.IsNullOrEmpty(content))
                     {
@@ -81,17 +108,79 @@ namespace Naticord
                                 MessageContent = content
                             };
 
-                            lastMessageControl.SetProfilePicture(await LoadImageFromUrlAsync(avatarUrl));
+                            lastMessageControl.SetProfilePicture(avatarCache.TryGetValue(authorId, out var avatar) ? avatar : Properties.Resources.defaultpfp);
                             lastMessageControl.UpdateHeight();
                             chatBox.Controls.Add(lastMessageControl);
                             lastAuthor = author;
                         }
                     }
                 }
+                chatBox.ResumeLayout();
+                ScrollToBottom();
             }
             catch (Exception ex)
             {
                 ShowErrorMessage("Failed to retrieve messages", ex);
+            }
+        }
+
+        public async Task AddMessage(string author, string content, string userId, string avatarHash)
+        {
+            try
+            {
+                string avatarUrl = $"https://cdn.discordapp.com/avatars/{userId}/{avatarHash}.png";
+
+                Dictionary<string, Image> avatarCache = new();
+
+                if (!string.IsNullOrEmpty(author) && !string.IsNullOrEmpty(content))
+                {
+                    if (!avatarCache.ContainsKey(userId))
+                    {
+                        avatarCache[userId] = await LoadImageFromUrlAsync(avatarUrl);
+                    }
+
+                    MessageControl lastMessageControl = chatBox.Controls.Count > 0
+                        ? chatBox.Controls[chatBox.Controls.Count - 1] as MessageControl
+                        : null;
+
+                    if (lastMessageControl != null && lastMessageControl.Username == author)
+                    {
+                        lastMessageControl.MessageContent += Environment.NewLine + content;
+                        lastMessageControl.UpdateHeight();
+                    }
+                    else
+                    {
+                        MessageControl newMessageControl = new MessageControl
+                        {
+                            Username = author,
+                            MessageContent = content
+                        };
+
+                        newMessageControl.SetProfilePicture(avatarCache.ContainsKey(userId) ? avatarCache[userId] : Properties.Resources.defaultpfp);
+                        newMessageControl.UpdateHeight();
+                        chatBox.Controls.Add(newMessageControl);
+
+                        ScrollToBottom();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to add message: {ex.Message}");
+            }
+        }
+
+        private async Task<string> GetAvatarHashForUserAsync(string userId)
+        {
+            try
+            {
+                dynamic userData = await GetApiResponse($"users/{userId}");
+                return userData.avatar ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to fetch avatar hash for user {userId}: {ex.Message}");
+                return string.Empty;
             }
         }
 
@@ -115,6 +204,16 @@ namespace Naticord
                 return Properties.Resources.defaultpfp;
             }
         }
+
+        public void ScrollToBottom()
+        {
+            if (chatBox.Controls.Count > 0)
+            {
+                var lastControl = chatBox.Controls[chatBox.Controls.Count - 1];
+                chatBox.ScrollControlIntoView(lastControl);
+            }
+        }
+
 
         private void SetProfilePictureShape(PictureBox pictureBox)
         {

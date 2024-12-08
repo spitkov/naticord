@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
+using System.Reflection.Emit;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -19,10 +21,11 @@ namespace Naticord
         public Server parentServerForm;
         public WebSocket webSocket;
         private string accessToken;
+        private string _chatId;
         private const SslProtocols Tls12 = (SslProtocols)0x00000C00;
         private bool websocketClosed = false;
 
-        private WebSocketClient(string accessToken, Naticord parentClientForm = null, DM parentDMForm = null, Group parentGroupForm = null, Server parentServerForm = null)
+        private WebSocketClient(string accessToken, string chatId, Naticord parentClientForm = null, DM parentDMForm = null, Group parentGroupForm = null, Server parentServerForm = null)
         {
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
             this.accessToken = accessToken;
@@ -30,14 +33,15 @@ namespace Naticord
             this.parentDMForm = parentDMForm;
             this.parentGroupForm = parentGroupForm;
             this.parentServerForm = parentServerForm;
+            this._chatId = chatId;
             InitializeWebSocket();
         }
 
-        public static WebSocketClient Instance(string accessToken, Naticord parentClientForm = null, DM parentDMForm = null, Group parentGroupForm = null, Server parentServerForm = null)
+        public static WebSocketClient Instance(string accessToken, string chatId, Naticord parentClientForm = null, DM parentDMForm = null, Group parentGroupForm = null, Server parentServerForm = null)
         {
             if (_instance == null)
             {
-                _instance = new WebSocketClient(accessToken, parentClientForm, parentDMForm, parentGroupForm, parentServerForm);
+                _instance = new WebSocketClient(accessToken, chatId, parentClientForm, parentDMForm, parentGroupForm, parentServerForm);
             }
             return _instance;
         }
@@ -90,6 +94,8 @@ namespace Naticord
 
         private async Task HandleWebSocketMessage(string data)
         {
+            Debug.WriteLine($"Received WebSocket Message: {data}");
+
             var json = JObject.Parse(data);
             int opCode = (int)json["op"];
 
@@ -132,6 +138,50 @@ namespace Naticord
                 default:
                     Debug.WriteLine($"Unhandled OpCode: {opCode}");
                     break;
+            }
+        }
+
+        private async Task HandleMessageCreateEventAsync(JToken data)
+        {
+            string channelId = (string)data["channel_id"];
+            string userId = (string)data["author"]["id"];
+            string avatarHash = (string)data["author"]["avatar"];
+            string author = (string)data["author"]?["global_name"] ?? (string)data["author"]?["username"];
+            string content = (string)data["content"];
+
+            if (parentDMForm == null)
+            {
+                Debug.WriteLine("parentDMForm is null. Skipping message handling.");
+                return;
+            }
+
+            string chatIdString = parentDMForm.ChatID.ToString();
+            bool isChannelIdValid = !string.IsNullOrEmpty(channelId);
+            bool isChatIdMatch = chatIdString == channelId;
+
+            if (isChannelIdValid && isChatIdMatch)
+            {
+                parentDMForm.Invoke((MethodInvoker)(() =>
+                {
+                    parentDMForm.AddMessage(author, content, userId, avatarHash);
+                    parentDMForm.ScrollToBottom();
+                }));
+            }
+            else
+            {
+                // chat id invalid, dont add message
+            }
+
+            if (parentGroupForm != null && channelId == parentGroupForm.ChatID.ToString())
+            {
+                // parentGroupForm.AddMessage(author, content, "said", null, null, true, true);
+                parentGroupForm.Invoke((MethodInvoker)(() => parentGroupForm.ScrollToBottom()));
+            }
+
+            if (parentServerForm != null && channelId == parentServerForm.ChatID.ToString())
+            {
+                // parentServerForm.AddMessage(author, content, "said", null, null, true, true);
+                parentServerForm.Invoke((MethodInvoker)(() => parentServerForm.ScrollToBottom()));
             }
         }
 
@@ -185,8 +235,6 @@ namespace Naticord
                 if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentDMForm.ChatID)
                 {
                     string userId = (string)jToken["user_id"];
-                    string username = GetUsernameById(userId);
-                    UpdateFormLabel(parentDMForm.typingStatus, $"{username} is typing...");
                 }
             }
 
@@ -196,7 +244,6 @@ namespace Naticord
                 if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentGroupForm.ChatID)
                 {
                     string userId = (string)jToken["user_id"];
-                    string username = GetUsernameById(userId);
                 }
             }
 
@@ -206,7 +253,6 @@ namespace Naticord
                 if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentServerForm.ChatID)
                 {
                     string userId = (string)jToken["user_id"];
-                    string username = GetUsernameById(userId);
                 }
             }
         }
@@ -227,7 +273,7 @@ namespace Naticord
                 string channelId = (string)jToken["channel_id"];
                 if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentGroupForm.ChatID)
                 {
-                    // do nothing
+                    // Do nothing
                 }
             }
 
@@ -236,59 +282,8 @@ namespace Naticord
                 string channelId = (string)jToken["channel_id"];
                 if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentServerForm.ChatID)
                 {
-                    // do nothing
+                    // Do nothing
                 }
-            }
-        }
-
-        private async Task HandleMessageCreateEventAsync(JToken data)
-        {
-            if (parentDMForm != null)
-            {
-                string channelId = (string)data["channel_id"];
-                if (channelId == parentDMForm.ChatID.ToString())
-                {
-                    string author = (string)data["author"]?["global_name"] ?? (string)data["author"]?["username"];
-                    string content = (string)data["content"];
-                }
-            }
-
-            if (parentGroupForm != null)
-            {
-                string channelId = (string)data["channel_id"];
-                if (channelId == parentGroupForm.ChatID.ToString())
-                {
-                    string author = (string)data["author"]?["global_name"] ?? (string)data["author"]?["username"];
-                    string content = (string)data["content"];
-                    parentGroupForm.AddMessage(author, content, "said", null, null, true, true);
-                    parentGroupForm.Invoke((MethodInvoker)(() => parentGroupForm.ScrollToBottom()));
-                }
-            }
-
-            if (parentServerForm != null)
-            {
-                string channelId = (string)data["channel_id"];
-                if (channelId == parentServerForm.ChatID.ToString())
-                {
-                    string author = (string)data["author"]?["global_name"] ?? (string)data["author"]?["username"];
-                    string content = (string)data["content"];
-                    parentServerForm.AddMessage(author, content, "said", null, null, true, true);
-                    parentServerForm.Invoke((MethodInvoker)(() => parentServerForm.ScrollToBottom()));
-                }
-            }
-        }
-
-        private string GetUsernameById(string userId)
-        {
-            try
-            {
-                dynamic user = parentDMForm?.GetApiResponse($"users/{userId}") ?? parentGroupForm?.GetApiResponse($"users/{userId}") ?? parentServerForm?.GetApiResponse($"users/{userId}");
-                return user?.username ?? "Unknown";
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to get username for user ID {userId}: {ex.Message}");
-                return "Unknown";
             }
         }
 
@@ -304,41 +299,40 @@ namespace Naticord
             }
         }
 
-        private void HandleWebSocketError(string errorMessage)
+        private void HandleWebSocketError(string message)
         {
-            Console.WriteLine($"WebSocket Error: {errorMessage}");
-            InitializeWebSocket();
+            Console.WriteLine($"WebSocket error: {message}");
+            ReconnectWebSocket();
         }
 
         private void HandleWebSocketClose()
         {
+            Console.WriteLine("WebSocket connection closed");
             if (!websocketClosed)
             {
-                Console.WriteLine("WebSocket connection closed. Attempting to reconnect...");
-                InitializeWebSocket();
+                ReconnectWebSocket();
             }
         }
 
         public void CloseWebSocket()
         {
-            websocketClosed = true;
-            webSocket.Close();
+            if (webSocket?.ReadyState != WebSocketState.Closed)
+            {
+                Console.WriteLine("Closing WebSocket...");
+                websocketClosed = true;
+                webSocket?.Close();
+            }
+            else
+            {
+                Console.WriteLine("WebSocket is already closed.");
+            }
         }
 
-        public class Attachment
+        private void ReconnectWebSocket()
         {
-            public string URL { get; set; }
-            public string Type { get; set; }
-        }
-
-        public class Embed
-        {
-            public string Type { get; set; }
-            public string Author { get; set; }
-            public string AuthorURL { get; set; }
-            public string Title { get; set; }
-            public string TitleURL { get; set; }
-            public string Description { get; set; }
+            Console.WriteLine("Reconnecting WebSocket...");
+            CloseWebSocket();
+            InitializeWebSocket();
         }
     }
 }
