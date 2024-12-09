@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Reflection.Emit;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -14,36 +10,36 @@ using WebSocketSharp;
 
 namespace Naticord
 {
-    public class WebSocketClient
+    public class WebSocketClient : IDisposable
     {
         private static WebSocketClient _instance;
-        public Naticord parentClientForm;
-        public DM parentDMForm;
-        public Group parentGroupForm;
-        public Server parentServerForm;
-        public WebSocket webSocket;
+        private Naticord parentClientForm;
+        private DM parentDMForm;
+        private Group parentGroupForm;
+        private Server parentServerForm;
+        private WebSocket webSocket;
         private string accessToken;
         private bool isDMFormActive = false;
         private string _chatId;
-        private List<Tuple<string, string>> userStatuses = new List<Tuple<string, string>>();
         private const SslProtocols Tls12 = (SslProtocols)0x00000C00;
         private bool websocketClosed = false;
+        private bool disposed = false;
+        private Timer memoryTrackingTimer;
 
         private WebSocketClient(string accessToken, string chatId, Naticord parentClientForm = null, DM parentDMForm = null, Group parentGroupForm = null, Server parentServerForm = null)
         {
-            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
             this.accessToken = accessToken;
             this.parentClientForm = parentClientForm;
             this.parentDMForm = parentDMForm;
             this.parentGroupForm = parentGroupForm;
             this.parentServerForm = parentServerForm;
             this._chatId = chatId;
-            InitializeWebSocket();
-        }
 
-        public void SetDMFormActive(bool isActive)
-        {
-            isDMFormActive = isActive;
+            memoryTrackingTimer = new Timer();
+            memoryTrackingTimer.Interval = 5000;
+            memoryTrackingTimer.Tick += (sender, e) => LogMemoryUsage("Periodic Memory Check");
+
+            InitializeWebSocket();
         }
 
         public static WebSocketClient Instance(string accessToken, string chatId, Naticord parentClientForm = null, DM parentDMForm = null, Group parentGroupForm = null, Server parentServerForm = null)
@@ -55,15 +51,36 @@ namespace Naticord
             return _instance;
         }
 
+        public void SetDMFormActive(bool isActive)
+        {
+            isDMFormActive = isActive;
+        }
+
+        public void UpdateParentDMForm(DM dmForm)
+        {
+            parentDMForm = dmForm;
+            Console.WriteLine($"parentDMForm updated: {parentDMForm?.ChatID}");
+        }
+
         private void InitializeWebSocket()
         {
+            LogMemoryUsage("Before WebSocket Initialization");
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
             webSocket = new WebSocket($"wss://gateway.discord.gg/?v=9&encoding=json");
             webSocket.SslConfiguration.EnabledSslProtocols = Tls12;
             webSocket.OnMessage += async (sender, e) => await HandleWebSocketMessage(e.Data);
             webSocket.OnError += (sender, e) => HandleWebSocketError(e.Message);
             webSocket.OnClose += (sender, e) => HandleWebSocketClose();
+
+            LogMemoryUsage("After WebSocket Initialization");
+
             webSocket.Connect();
             SendIdentifyPayload();
+
+            memoryTrackingTimer.Start();
         }
 
         private void SendIdentifyPayload()
@@ -115,43 +132,30 @@ namespace Naticord
                         case "READY":
                             await ParseReadyEventAsync(data);
                             break;
-                        case "USER_SETTINGS_UPDATE":
-                            // ParseCustomStatusText(data);
-                            break;
-                        case "TYPING_START":
-                            HandleTypingStartEvent(json["d"]);
-                            break;
                         case "MESSAGE_CREATE":
                             await HandleMessageCreateEventAsync(json["d"]);
-                            HandleTypingStopEvent(json["d"]);
                             break;
                         case "PRESENCE_UPDATE":
-                            Debug.WriteLine("Received status update");
+                            Console.WriteLine("Received status update");
                             break;
                         default:
-                            Debug.WriteLine($"Unhandled event type: {eventType}");
+                            Console.WriteLine($"Unhandled event type: {eventType}");
                             break;
                     }
                     break;
 
                 case 1:
-                    Debug.WriteLine("Heartbeat event received");
+                    Console.WriteLine("Heartbeat event received");
                     break;
 
                 case 10:
-                    Debug.WriteLine("Hello! From Discord Gateway");
+                    Console.WriteLine("Hello! From Discord Gateway");
                     break;
 
                 default:
-                    Debug.WriteLine($"Unhandled OpCode: {opCode}");
+                    Console.WriteLine($"Unhandled OpCode: {opCode}");
                     break;
             }
-        }
-
-        public void UpdateParentDMForm(DM dmForm)
-        {
-            parentDMForm = dmForm;
-            Debug.WriteLine($"parentDMForm updated: {parentDMForm?.ChatID}");
         }
 
         private async Task HandleMessageCreateEventAsync(JToken data)
@@ -162,23 +166,9 @@ namespace Naticord
             string author = (string)data["author"]?["global_name"] ?? (string)data["author"]?["username"];
             string content = (string)data["content"];
 
-            if (!isDMFormActive)
-            {
-                Debug.WriteLine("DM form is not active yet. Skipping message handling.");
-                return;
-            }
+            if (!isDMFormActive || parentDMForm == null) return;
 
-            if (parentDMForm == null)
-            {
-                Debug.WriteLine("DM form is null, please wait a second before adding a message.");
-                return;
-            }
-
-            string chatIdString = parentDMForm.ChatID.ToString();
-            bool isChannelIdValid = !string.IsNullOrEmpty(channelId);
-            bool isChatIdMatch = chatIdString == channelId;
-
-            if (isChannelIdValid && isChatIdMatch)
+            if (parentDMForm.ChatID.ToString() == channelId)
             {
                 parentDMForm.Invoke((MethodInvoker)(() =>
                 {
@@ -186,23 +176,18 @@ namespace Naticord
                     parentDMForm.ScrollToBottom();
                 }));
             }
-            else
-            {
-                // chat id invalid, dont add message
-            }
 
             if (parentGroupForm != null && channelId == parentGroupForm.ChatID.ToString())
             {
-                // parentGroupForm.AddMessage(author, content, "said", null, null, true, true);
                 parentGroupForm.Invoke((MethodInvoker)(() => parentGroupForm.ScrollToBottom()));
             }
 
             if (parentServerForm != null && channelId == parentServerForm.ChatID.ToString())
             {
-                // parentServerForm.AddMessage(author, content, "said", null, null, true, true);
                 parentServerForm.Invoke((MethodInvoker)(() => parentServerForm.ScrollToBottom()));
             }
         }
+
         private async Task ParseReadyEventAsync(string data)
         {
             try
@@ -219,8 +204,6 @@ namespace Naticord
                     { "invisible", "Invisible" }
                 };
 
-                UserStatusManager.ClearStatuses();
-
                 List<Task> statusTasks = new List<Task>();
 
                 foreach (var presence in presences)
@@ -228,14 +211,7 @@ namespace Naticord
                     string userId = (string)presence["user"]?["id"];
                     string userStatus = (string)presence["status"] ?? "Offline";
 
-                    if (statusTranslations.ContainsKey(userStatus))
-                    {
-                        userStatus = statusTranslations[userStatus];
-                    }
-                    else
-                    {
-                        userStatus = "Offline";
-                    }
+                    userStatus = statusTranslations.ContainsKey(userStatus) ? statusTranslations[userStatus] : "Offline";
 
                     var activities = presence["activities"] as JArray;
                     string statusMessage = userStatus;
@@ -243,141 +219,18 @@ namespace Naticord
                     var customStatus = activities?.FirstOrDefault(a => (int?)a["type"] == 4);
                     bool hasEmoji = customStatus != null && (customStatus["state"]?.ToString().Contains("🙂") == true || customStatus["emoji"] != null);
 
-                    if (hasEmoji)
-                    {
-                        statusMessage = userStatus;
-                    }
-                    else if (customStatus != null)
-                    {
-                        string customState = (string)customStatus["state"];
-                        if (!string.IsNullOrEmpty(customState))
-                        {
-                            statusMessage = customState;
-                        }
-                    }
-
-                    if (activities != null)
-                    {
-                        foreach (var activity in activities)
-                        {
-                            int activityType = (int?)activity["type"] ?? -1;
-                            string activityStatus = (string)activity["name"];
-
-                            switch (activityType)
-                            {
-                                case 0: // Playing (Game)
-                                    statusMessage = $"Playing {activityStatus}";
-                                    break;
-
-                                case 1: // Streaming (on live streaming platform)
-                                    statusMessage = $"Streaming {activityStatus}";
-                                    break;
-
-                                case 2: // Listening (e.g., Music, Spotify)
-                                    statusMessage = $"Listening to {activityStatus}";
-                                    break;
-
-                                case 3: // Watching (e.g., YouTube or a video)
-                                    statusMessage = $"Watching {activityStatus}";
-                                    break;
-
-                                default: // Custom status
-                                    if (string.IsNullOrEmpty(statusMessage))
-                                    {
-                                        statusMessage = customStatus != null ? (string)customStatus["state"] : "No current activity";
-                                    }
-                                    break;
-                            }
-                            break;
-                        }
-                    }
+                    if (hasEmoji) statusMessage = userStatus;
+                    else if (customStatus != null) statusMessage = customStatus["state"]?.ToString() ?? "No current activity";
 
                     var task = Task.Run(() => UserStatusManager.SetUserStatus(userId, statusMessage));
                     statusTasks.Add(task);
                 }
 
                 await Task.WhenAll(statusTasks);
-
-                if (parentClientForm != null)
-                {
-                    await parentClientForm.PopulateFriendsTabAsync();
-                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error parsing READY event: {ex.Message}");
-            }
-        }
-
-        private void HandleTypingStartEvent(JToken jToken)
-        {
-            if (parentDMForm != null)
-            {
-                string channelId = (string)jToken["channel_id"];
-                if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentDMForm.ChatID)
-                {
-                    string userId = (string)jToken["user_id"];
-                }
-            }
-
-            if (parentGroupForm != null)
-            {
-                string channelId = (string)jToken["channel_id"];
-                if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentGroupForm.ChatID)
-                {
-                    string userId = (string)jToken["user_id"];
-                }
-            }
-
-            if (parentServerForm != null)
-            {
-                string channelId = (string)jToken["channel_id"];
-                if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentServerForm.ChatID)
-                {
-                    string userId = (string)jToken["user_id"];
-                }
-            }
-        }
-
-        private void HandleTypingStopEvent(JToken jToken)
-        {
-            if (parentDMForm != null)
-            {
-                string channelId = (string)jToken["channel_id"];
-                if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentDMForm.ChatID)
-                {
-                    UpdateFormLabel(parentDMForm.typingStatus, string.Empty);
-                }
-            }
-
-            if (parentGroupForm != null)
-            {
-                string channelId = (string)jToken["channel_id"];
-                if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentGroupForm.ChatID)
-                {
-                    // Do nothing
-                }
-            }
-
-            if (parentServerForm != null)
-            {
-                string channelId = (string)jToken["channel_id"];
-                if (long.TryParse(channelId, out long parsedChannelId) && parsedChannelId == parentServerForm.ChatID)
-                {
-                    // Do nothing
-                }
-            }
-        }
-
-        private void UpdateFormLabel(Control label, string text)
-        {
-            if (label.InvokeRequired)
-            {
-                label.Invoke((Action)(() => label.Text = text));
-            }
-            else
-            {
-                label.Text = text;
+                Console.WriteLine($"Error parsing READY event: {ex.Message}");
             }
         }
 
@@ -389,20 +242,28 @@ namespace Naticord
 
         private void HandleWebSocketClose()
         {
+            LogMemoryUsage("Before WebSocket Close");
+
             Console.WriteLine("WebSocket connection closed");
             if (!websocketClosed)
             {
                 ReconnectWebSocket();
             }
+
+            LogMemoryUsage("After WebSocket Close");
         }
 
         public void CloseWebSocket()
         {
             if (webSocket?.ReadyState != WebSocketState.Closed)
             {
+                LogMemoryUsage("Before WebSocket Close");
+
                 Console.WriteLine("Closing WebSocket...");
                 websocketClosed = true;
                 webSocket?.Close();
+
+                LogMemoryUsage("After WebSocket Close");
             }
             else
             {
@@ -415,6 +276,38 @@ namespace Naticord
             Console.WriteLine("Reconnecting WebSocket...");
             CloseWebSocket();
             InitializeWebSocket();
+        }
+
+        private void LogMemoryUsage(string message)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            long memoryUsed = GC.GetTotalMemory(false);
+            Console.WriteLine($"{message}: {memoryUsed / (1024 * 1024)} MB");
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+            if (disposing)
+            {
+                if (webSocket != null && webSocket.ReadyState != WebSocketState.Closed)
+                {
+                    webSocket.Close();
+                }
+                webSocket = null;
+
+                memoryTrackingTimer?.Stop();
+                memoryTrackingTimer = null;
+            }
+            disposed = true;
         }
     }
 }

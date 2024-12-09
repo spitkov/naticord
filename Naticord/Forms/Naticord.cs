@@ -21,11 +21,7 @@ namespace Naticord
         private Login signin;
         private string userPFP;
         private Dictionary<string, long> groupChatIDs = new Dictionary<string, long>();
-        private List<ListViewItem> allFriends;
         private WebSocketClient websocketClient;
-        private List<ListViewItem> allServers;
-        private ContextMenuStrip friendsContextMenu;
-        private ContextMenuStrip serversContextMenu;
 
         public Naticord(string token, Login signinArg)
         {
@@ -41,11 +37,6 @@ namespace Naticord
 
             Application.EnableVisualStyles();
             WebSocketClient client = WebSocketClient.Instance(AccessToken, null, null);
-
-            //friendSearchBar.TextChanged += FriendsSearchBar_TextChanged;
-            //serverSearchBar.TextChanged += ServersSearchBar_TextChanged;
-
-            InitializeContextMenus();
         }
 
         private void SetProfilePictureRegion()
@@ -54,158 +45,6 @@ namespace Naticord
             path.AddEllipse(0, 0, profilepicture.Width, profilepicture.Height);
             profilepicture.Region = new Region(path);
         }
-
-        private void InitializeContextMenus()
-        {
-            friendsContextMenu = new ContextMenuStrip();
-            serversContextMenu = new ContextMenuStrip();
-
-            /*ToolStripMenuItem copyFriendIdMenuItem = new ToolStripMenuItem("Copy ID");
-            ToolStripMenuItem blockFriendMenuItem = new ToolStripMenuItem("Block");
-            ToolStripMenuItem unfriendMenuItem = new ToolStripMenuItem("Unfriend");
-            ToolStripMenuItem leaveGroupMenuItem = new ToolStripMenuItem("Leave Group");
-
-            copyFriendIdMenuItem.Click += CopyFriendIdMenuItem_Click;
-            blockFriendMenuItem.Click += BlockFriendMenuItem_Click;
-            unfriendMenuItem.Click += UnfriendMenuItem_Click;
-            leaveGroupMenuItem.Click += LeaveGroupMenuItem_Click;
-
-            friendsContextMenu.Items.Add(copyFriendIdMenuItem);
-            friendsContextMenu.Items.Add(blockFriendMenuItem);
-            friendsContextMenu.Items.Add(unfriendMenuItem);
-            friendsContextMenu.Items.Add(leaveGroupMenuItem);
-
-            ToolStripMenuItem copyServerIdMenuItem = new ToolStripMenuItem("Copy ID");
-            ToolStripMenuItem leaveServerMenuItem = new ToolStripMenuItem("Leave Server");
-
-            copyServerIdMenuItem.Click += CopyServerIdMenuItem_Click;
-            leaveServerMenuItem.Click += LeaveServerMenuItem_Click;
-
-            serversContextMenu.Items.Add(copyServerIdMenuItem);
-            serversContextMenu.Items.Add(leaveServerMenuItem);
-
-            friendsPanel.ContextMenuStrip = friendsContextMenu;
-            serversList.ContextMenuStrip = serversContextMenu;
-
-            friendsPanel.MouseUp += FriendsList_MouseUp;
-            serversList.MouseUp += ServersList_MouseUp;*/
-        }
-
-        /*private void FriendsList_MouseUp(object sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Right)
-            {
-                ListViewItem item = friendsPanel.GetItemAt(e.X, e.Y);
-                if (item != null)
-                {
-                    friendsContextMenu.Show(friendsPanel, e.Location);
-                }
-            }
-        
-
-        private void ServersList_MouseUp(object sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Right)
-            {
-                ListViewItem item = serversList.GetItemAt(e.X, e.Y);
-                if (item != null)
-                {
-                    serversContextMenu.Show(serversList, e.Location);
-                }
-            }
-        }
-
-        private void CopyFriendIdMenuItem_Click(object sender, EventArgs e)
-        {
-            if (friendsPanel.SelectedItems.Count > 0)
-            {
-                string selectedFriend = friendsPanel.SelectedItems[0].Text;
-                long chatID = GetChatID(selectedFriend);
-                Clipboard.SetText(chatID.ToString());
-            }
-        }
-
-        private void BlockFriendMenuItem_Click(object sender, EventArgs e)
-        {
-            if (friendsPanel.SelectedItems.Count > 0)
-            {
-                string selectedFriend = friendsPanel.SelectedItems[0].Text;
-                long friendID = GetFriendID(selectedFriend);
-                if (friendID >= 0)
-                {
-                    BlockUser(friendID);
-                    MessageBox.Show($"{selectedFriend} has been blocked.", "Block User", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Unable to block this user.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
-        private void UnfriendMenuItem_Click(object sender, EventArgs e)
-        {
-            if (friendsPanel.SelectedItems.Count > 0)
-            {
-                string selectedFriend = friendsPanel.SelectedItems[0].Text;
-                long friendID = GetFriendID(selectedFriend);
-                if (friendID >= 0)
-                {
-                    UnfriendUser(friendID);
-                    MessageBox.Show($"{selectedFriend} has been unfriended.", "Unfriend User", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Unable to unfriend this user.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
-        private void LeaveGroupMenuItem_Click(object sender, EventArgs e)
-        {
-            if (friendsPanel.SelectedItems.Count > 0)
-            {
-                string selectedGroup = friendsPanel.SelectedItems[0].Text;
-                long groupID = GetGroupID(selectedGroup);
-                if (groupID >= 0)
-                {
-                    LeaveGroup(groupID);
-                    MessageBox.Show($"You have left the group: {selectedGroup}.", "Leave Group", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Unable to leave this group.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
-        private void CopyServerIdMenuItem_Click(object sender, EventArgs e)
-        {
-            if (serversList.SelectedItems.Count > 0)
-            {
-                string selectedServer = serversList.SelectedItems[0].Text;
-                long serverID = GetServerID(selectedServer);
-                Clipboard.SetText(serverID.ToString());
-            }
-        }
-
-        private void LeaveServerMenuItem_Click(object sender, EventArgs e)
-        {
-            if (serversList.SelectedItems.Count > 0)
-            {
-                string selectedServer = serversList.SelectedItems[0].Text;
-                long serverID = GetServerID(selectedServer);
-                if (serverID >= 0)
-                {
-                    LeaveServer(serverID);
-                    MessageBox.Show($"You have left the server: {selectedServer}.", "Leave Server", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Unable to leave this server.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }*/
 
         private void SetUserInfo()
         {
@@ -259,7 +98,6 @@ namespace Naticord
 
                 foreach (var channel in channels)
                 {
-                    // Skip invalid channels
                     if (channel == null || channel.id == null || channel.id == 0)
                     {
                         continue;
@@ -267,7 +105,6 @@ namespace Naticord
 
                     long channelId = (long)channel.id;
 
-                    // Skip previously processed channelIds
                     if (channelIds.Contains(channelId))
                     {
                         continue;
@@ -434,7 +271,7 @@ namespace Naticord
                 dynamic channels = GetApiResponse("users/@me/channels");
                 foreach (var channel in channels)
                 {
-                    if (channel.type == 1) // i fucked up this line so bad it once started to load every single group chat i had lmfao great coding skillz 1337
+                    if (channel.type == 1)
                     {
                         foreach (var recipient in channel.recipients)
                         {
@@ -514,22 +351,16 @@ namespace Naticord
         {
             try
             {
-                // Get all guilds (servers) the user is part of
                 dynamic guilds = await GetApiResponseAsync("users/@me/guilds");
-                Console.WriteLine($"Count of guilds: {guilds.Count}");
 
                 serversPanel.Controls.Clear();
                 int yPosition = 0;
 
                 List<Task> imageDownloadTasks = new List<Task>();
-                HashSet<string> processedGuilds = new HashSet<string>(); // Track processed guilds
-
-                // List to hold individual tasks for guild processing
-                List<Task> guildTasks = new List<Task>();
+                HashSet<string> processedGuilds = new HashSet<string>();
 
                 foreach (var guild in guilds)
                 {
-                    // Skip invalid guilds
                     if (guild == null || guild.id == null || guild.name == null)
                     {
                         continue;
@@ -538,57 +369,39 @@ namespace Naticord
                     string guildName = guild.name.ToString();
                     string guildId = guild.id.ToString();
 
-                    // Skip duplicate guilds
                     if (processedGuilds.Contains(guildId))
+                    {
                         continue;
+                    }
 
                     processedGuilds.Add(guildId);
 
                     string iconHash = guild.icon;
-                    // Fetch guild details asynchronously
-                    Task<dynamic> guildDetailsTask = GetApiResponseAsync($"guilds/{guildId}");
-                    guildTasks.Add(guildDetailsTask);
+                    dynamic guildDetails = await GetApiResponseAsync($"guilds/{guildId}");
 
-                    // Create and process the server control once the task completes
-                    guildDetailsTask.ContinueWith(async t =>
+                    string description = string.IsNullOrEmpty(guildDetails?.description.ToString()) ? "No description found." : guildDetails.description.ToString();
+
+                    var serverControl = new FriendControl
                     {
-                        dynamic guildDetails = await t; // Await the result of the Task<dynamic>
-                        string description = string.IsNullOrEmpty(guildDetails?.description.ToString()) ? "No description found." : guildDetails.description.ToString();
+                        Username = guildName,
+                        StatusContent = description,
+                        Tag = new Tuple<string, string>(guildId, guildName),
+                        Location = new Point(0, yPosition)
+                    };
 
-                        // Create the server control for the guild
-                        var serverControl = new FriendControl
-                        {
-                            Username = guildName,
-                            StatusContent = description,
-                            Tag = new Tuple<string, string>(guildId, guildName),
-                            Location = new Point(0, yPosition)
-                        };
+                    if (!string.IsNullOrEmpty(iconHash))
+                    {
+                        string iconUrl = $"https://cdn.discordapp.com/icons/{guildId}/{iconHash}.png";
 
-                        // Handle the server icon download
-                        if (!string.IsNullOrEmpty(iconHash))
-                        {
-                            string iconUrl = $"https://cdn.discordapp.com/icons/{guildId}/{iconHash}.png";
-                            var downloadTask = DownloadProfileImageAsync(iconUrl, serverControl);
-                            imageDownloadTasks.Add(downloadTask);
-                        }
+                        var downloadTask = DownloadProfileImageAsync(iconUrl, serverControl);
+                        imageDownloadTasks.Add(downloadTask);
+                    }
 
-                        // Add the control to the UI thread (Invoke to ensure thread safety)
-                        await Task.Run(() =>
-                        {
-                            Invoke(new Action(() =>
-                            {
-                                yPosition += serverControl.Height;
-                                serversPanel.Controls.Add(serverControl);
-                                serverControl.MouseDoubleClick += ServerControl_DoubleClick;
-                            }));
-                        });
-                    });
+                    yPosition += serverControl.Height;
+                    serversPanel.Controls.Add(serverControl);
+                    serverControl.MouseDoubleClick += ServerControl_DoubleClick;
                 }
 
-                // Run all guild tasks in parallel
-                await Task.WhenAll(guildTasks);
-
-                // Wait for all image download tasks to finish
                 await Task.WhenAll(imageDownloadTasks);
             }
             catch (WebException ex)
@@ -688,119 +501,10 @@ namespace Naticord
             signin.Close();
         }
 
-        /*private void serversList_DoubleClick(object sender, EventArgs ex)
-        {
-            if (serversList.SelectedItems.Count > 0)
-            {
-                string selectedServer = serversList.SelectedItems[0].Text;
-                long serverID = GetServerID(selectedServer);
-                if (serverID >= 0)
-                {
-                    Server server = new Server(serverID, AccessToken);
-                    server.Show();
-                }
-                else
-                {
-                    MessageBox.Show("Unable to open this Server", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }*/
-
         private void button1_Click(object sender, EventArgs e)
         {
             Settings settingsForm = new Settings();
             settingsForm.Show();
         }
-
-        /*private void FriendsSearchBar_TextChanged(object sender, EventArgs e)
-        {
-            FilterItems(friendSearchBar.Text.ToLower(), allFriends, friendsPanel);
-        }
-
-        private void ServersSearchBar_TextChanged(object sender, EventArgs e)
-        {
-            FilterItems(serverSearchBar.Text.ToLower(), allServers, serversList);
-        }*/
-
-        private void FilterItems(string searchText, List<ListViewItem> allItems, ListView listView)
-        {
-            listView.Items.Clear();
-            List<ListViewItem> filteredItems = allItems.FindAll(item => item.Text.ToLower().Contains(searchText));
-            listView.Items.AddRange(filteredItems.ToArray());
-        }
-
-        /*private void BlockUser(long userID)
-        {
-            try
-            {
-                using (var webClient = new WebClient())
-                {
-                    webClient.Headers[HttpRequestHeader.Authorization] = AccessToken;
-                    var data = new System.Collections.Specialized.NameValueCollection();
-                    data["type"] = "2";
-                    webClient.UploadValues($"{DiscordApiBaseUrl}users/@me/relationships/{userID}", "PUT", data);
-                    friendsPanel.Items.Clear();
-                    PopulateFriendsTab();
-                }
-            }
-            catch (WebException ex)
-            {
-                ShowErrorMessage("Failed to block user", ex);
-            }
-        }
-
-        private void UnfriendUser(long userID)
-        {
-            try
-            {
-                using (var webClient = new WebClient())
-                {
-                    webClient.Headers[HttpRequestHeader.Authorization] = AccessToken;
-                    webClient.UploadValues($"{DiscordApiBaseUrl}users/@me/relationships/{userID}", "DELETE", new System.Collections.Specialized.NameValueCollection());
-                    friendsPanel.Items.Clear();
-                    PopulateFriendsTab();
-                }
-            }
-            catch (WebException ex)
-            {
-                ShowErrorMessage("Failed to unfriend user", ex);
-            }
-        }
-
-        private void LeaveGroup(long groupID)
-        {
-            try
-            {
-                using (var webClient = new WebClient())
-                {
-                    webClient.Headers[HttpRequestHeader.Authorization] = AccessToken;
-                    webClient.UploadValues($"{DiscordApiBaseUrl}channels/{groupID}", "DELETE", new System.Collections.Specialized.NameValueCollection());
-                    friendsPanel.Items.Clear();
-                    PopulateFriendsTab();
-                }
-            }
-            catch (WebException ex)
-            {
-                ShowErrorMessage("Failed to leave group", ex);
-            }
-        }
-
-        private void LeaveServer(long serverID)
-        {
-            try
-            {
-                using (var webClient = new WebClient())
-                {
-                    webClient.Headers[HttpRequestHeader.Authorization] = AccessToken;
-                    webClient.UploadValues($"{DiscordApiBaseUrl}users/@me/guilds/{serverID}", "DELETE", new System.Collections.Specialized.NameValueCollection());
-                    serversList.Items.Clear();
-                    PopulateServersTab();
-                }
-            }
-            catch (WebException ex)
-            {
-                ShowErrorMessage("Failed to leave server", ex);
-            }
-        }*/
     }
 }
