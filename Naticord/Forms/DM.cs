@@ -22,22 +22,27 @@ namespace Naticord
         private WebSocketClient websocketClient;
         private readonly string AccessToken;
         public long ChatID { get; }
-        public long FriendID { get; }
+        public string FriendID { get; }
         private readonly string userPFP;
         private string lastMessageAuthor = "";
         private Image _lastUploadedImage = null;
 
-        public DM(long chatid, long friendid, string token, string userpfp)
+        public DM(long chatid, string friendid, string token, string userpfp)
         {
-            InitializeComponent();
+            websocketClient = WebSocketClient.Instance(token, chatid.ToString(), parentDMForm: this);
+            if (websocketClient == null)
+            {
+                throw new InvalidOperationException("WebSocketClient instance could not be initialized.");
+            }
             AccessToken = token;
             ChatID = chatid;
             FriendID = friendid;
             userPFP = userpfp;
+            InitializeComponent();
             SetFriendInfo();
-            WebSocketClient client = WebSocketClient.Instance(AccessToken, chatid.ToString(), parentDMForm: this);
             SetProfilePictureShape(profilepicturefriend);
             LoadMessages();
+            websocketClient.SetDMFormActive(true);
         }
 
         private async void LoadMessages()
@@ -45,9 +50,6 @@ namespace Naticord
             try
             {
                 dynamic messages = await GetApiResponse($"channels/{ChatID}/messages");
-
-                Console.WriteLine("Raw JSON Response: ");
-                Console.WriteLine(messages);
 
                 chatBox.AutoScroll = true;
                 chatBox.FlowDirection = FlowDirection.TopDown;
@@ -234,7 +236,7 @@ namespace Naticord
             }
             catch (Exception ex)
             {
-                ShowErrorMessage("Failed to retrieve user profile", ex);
+                ShowErrorMessage($"Failed to retrieve user profile Debug Information: {FriendID}", ex);
             }
         }
 
@@ -352,6 +354,12 @@ namespace Naticord
                 e.SuppressKeyPress = true;
                 SendMessage();
             }
+        }
+
+        private void DM_Load(object sender, EventArgs e)
+        {
+            websocketClient.UpdateParentDMForm(this);
+            Debug.WriteLine($"DM Form assigned to WebSocketClient: {this.ChatID}");
         }
     }
 }

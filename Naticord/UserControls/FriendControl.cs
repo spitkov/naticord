@@ -16,6 +16,8 @@ namespace Naticord.UserControls
         {
             InitializeComponent();
             SetProfilePictureShape(profilepicture);
+            this.Margin = new Padding(0);
+            this.Padding = new Padding(0);
         }
 
         public string Username

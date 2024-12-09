@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Naticord.Classes
 {
@@ -9,6 +10,12 @@ namespace Naticord.Classes
 
         public static void SetUserStatus(string userId, string status)
         {
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(status))
+            {
+                Debug.WriteLine("Error occurred during user status set process.");
+                return;
+            }
+
             if (userStatuses.ContainsKey(userId))
             {
                 userStatuses[userId] = status;

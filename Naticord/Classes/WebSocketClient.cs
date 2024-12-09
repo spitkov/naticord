@@ -23,6 +23,7 @@ namespace Naticord
         public Server parentServerForm;
         public WebSocket webSocket;
         private string accessToken;
+        private bool isDMFormActive = false;
         private string _chatId;
         private List<Tuple<string, string>> userStatuses = new List<Tuple<string, string>>();
         private const SslProtocols Tls12 = (SslProtocols)0x00000C00;
@@ -38,6 +39,11 @@ namespace Naticord
             this.parentServerForm = parentServerForm;
             this._chatId = chatId;
             InitializeWebSocket();
+        }
+
+        public void SetDMFormActive(bool isActive)
+        {
+            isDMFormActive = isActive;
         }
 
         public static WebSocketClient Instance(string accessToken, string chatId, Naticord parentClientForm = null, DM parentDMForm = null, Group parentGroupForm = null, Server parentServerForm = null)
@@ -97,8 +103,6 @@ namespace Naticord
 
         private async Task HandleWebSocketMessage(string data)
         {
-            Debug.WriteLine($"Received WebSocket Message: {data}");
-
             var json = JObject.Parse(data);
             int opCode = (int)json["op"];
 
@@ -144,6 +148,12 @@ namespace Naticord
             }
         }
 
+        public void UpdateParentDMForm(DM dmForm)
+        {
+            parentDMForm = dmForm;
+            Debug.WriteLine($"parentDMForm updated: {parentDMForm?.ChatID}");
+        }
+
         private async Task HandleMessageCreateEventAsync(JToken data)
         {
             string channelId = (string)data["channel_id"];
@@ -152,9 +162,15 @@ namespace Naticord
             string author = (string)data["author"]?["global_name"] ?? (string)data["author"]?["username"];
             string content = (string)data["content"];
 
+            if (!isDMFormActive)
+            {
+                Debug.WriteLine("DM form is not active yet. Skipping message handling.");
+                return;
+            }
+
             if (parentDMForm == null)
             {
-                Debug.WriteLine("parentDMForm is null. Skipping message handling.");
+                Debug.WriteLine("DM form is null, please wait a second before adding a message.");
                 return;
             }
 
@@ -212,7 +228,6 @@ namespace Naticord
                     string userId = (string)presence["user"]?["id"];
                     string userStatus = (string)presence["status"] ?? "Offline";
 
-                    // Translate status if applicable
                     if (statusTranslations.ContainsKey(userStatus))
                     {
                         userStatus = statusTranslations[userStatus];
@@ -254,7 +269,7 @@ namespace Naticord
                                     statusMessage = $"Playing {activityStatus}";
                                     break;
 
-                                case 1: // Streaming (e.g., watching a live stream)
+                                case 1: // Streaming (on live streaming platform)
                                     statusMessage = $"Streaming {activityStatus}";
                                     break;
 
@@ -266,26 +281,19 @@ namespace Naticord
                                     statusMessage = $"Watching {activityStatus}";
                                     break;
 
-                                default:
-                                    // Fallback to custom status if no activity type matched
+                                default: // Custom status
                                     if (string.IsNullOrEmpty(statusMessage))
                                     {
                                         statusMessage = customStatus != null ? (string)customStatus["state"] : "No current activity";
                                     }
                                     break;
                             }
-
-                            // After processing the first valid activity, break out of the loop
                             break;
                         }
                     }
 
-                    // Set the status message (either custom status or activity-based)
                     var task = Task.Run(() => UserStatusManager.SetUserStatus(userId, statusMessage));
                     statusTasks.Add(task);
-
-                    Debug.WriteLine($"User ID: {userId}");
-                    Debug.WriteLine($"Status: {statusMessage}");
                 }
 
                 await Task.WhenAll(statusTasks);

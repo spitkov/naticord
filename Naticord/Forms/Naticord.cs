@@ -35,7 +35,7 @@ namespace Naticord
             descriptionLabel = new Label();
             SetUserInfo();
             PopulateFriendsTabAsync();
-            PopulateServersTab();
+            PopulateServersTabAsync();
             SetProfilePictureRegion();
             Settings settingsForm = new Settings();
 
@@ -43,7 +43,7 @@ namespace Naticord
             WebSocketClient client = WebSocketClient.Instance(AccessToken, null, null);
 
             //friendSearchBar.TextChanged += FriendsSearchBar_TextChanged;
-            serverSearchBar.TextChanged += ServersSearchBar_TextChanged;
+            //serverSearchBar.TextChanged += ServersSearchBar_TextChanged;
 
             InitializeContextMenus();
         }
@@ -101,7 +101,7 @@ namespace Naticord
                     friendsContextMenu.Show(friendsPanel, e.Location);
                 }
             }
-        }*/
+        
 
         private void ServersList_MouseUp(object sender, MouseEventArgs e)
         {
@@ -115,7 +115,7 @@ namespace Naticord
             }
         }
 
-        /*private void CopyFriendIdMenuItem_Click(object sender, EventArgs e)
+        private void CopyFriendIdMenuItem_Click(object sender, EventArgs e)
         {
             if (friendsPanel.SelectedItems.Count > 0)
             {
@@ -141,9 +141,9 @@ namespace Naticord
                     MessageBox.Show("Unable to block this user.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        }*/
+        }
 
-        /*private void UnfriendMenuItem_Click(object sender, EventArgs e)
+        private void UnfriendMenuItem_Click(object sender, EventArgs e)
         {
             if (friendsPanel.SelectedItems.Count > 0)
             {
@@ -177,7 +177,7 @@ namespace Naticord
                     MessageBox.Show("Unable to leave this group.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        }*/
+        }
 
         private void CopyServerIdMenuItem_Click(object sender, EventArgs e)
         {
@@ -205,7 +205,7 @@ namespace Naticord
                     MessageBox.Show("Unable to leave this server.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        }
+        }*/
 
         private void SetUserInfo()
         {
@@ -233,7 +233,6 @@ namespace Naticord
             }
         }
 
-        // absolute garbo, dont touch this unless necessary (it will combust into pieces). if it compiles thats great and if it works thats even greater.
         public async Task PopulateFriendsTabAsync()
         {
             try
@@ -252,6 +251,7 @@ namespace Naticord
 
                 HashSet<long> channelIds = new HashSet<long>();
                 friendsPanel.Controls.Clear();
+                int yPosition = 0;
 
                 List<Task> imageDownloadTasks = new List<Task>();
 
@@ -259,13 +259,16 @@ namespace Naticord
 
                 foreach (var channel in channels)
                 {
-                    if (channel == null || channel.id == null)
+                    // Skip invalid channels
+                    if (channel == null || channel.id == null || channel.id == 0)
                     {
                         continue;
                     }
 
                     long channelId = (long)channel.id;
-                    if (channelIds.Contains(channelId) || channelId == 0)
+
+                    // Skip previously processed channelIds
+                    if (channelIds.Contains(channelId))
                     {
                         continue;
                     }
@@ -341,7 +344,8 @@ namespace Naticord
                     {
                         Username = namesOrName,
                         StatusContent = statusContent,
-                        Tag = channelId
+                        Tag = Tuple.Create(channelId, userId),
+                        Location = new Point(0, yPosition)
                     };
 
                     if (channel.recipients != null && channel.recipients.Count > 0)
@@ -363,20 +367,38 @@ namespace Naticord
                         string status = UserStatusManager.GetUserStatus(userId);
                         friendControl.StatusContent = status;
                     }
+                    yPosition += friendControl.Height;
 
-                    if (!string.IsNullOrEmpty(friendControl.Username) && channelId != 0)
-                    {
-                        friendsPanel.Controls.Add(friendControl);
-                        friendControl.Location = new Point(0, friendsPanel.Controls.Count * friendControl.Height);
-                        channelIds.Add(channelId);
-                    }
+                    friendsPanel.Controls.Add(friendControl);
+                    channelIds.Add(channelId);
+
+                    friendControl.MouseDoubleClick += FriendControl_MouseDoubleClick;
                 }
 
                 await Task.WhenAll(imageDownloadTasks);
+                friendsPanel.PerformLayout();
             }
             catch (WebException ex)
             {
                 ShowErrorMessage("Failed to retrieve channel list", ex);
+            }
+        }
+
+        private void FriendControl_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            FriendControl friendControl = sender as FriendControl;
+            if (friendControl != null)
+            {
+                var tag = friendControl.Tag as Tuple<long, string>;
+                if (tag != null)
+                {
+                    long channelId = tag.Item1;
+                    string userId = tag.Item2;
+
+                    DM dm = new DM(channelId, userId, AccessToken, userPFP);
+                    dm.Show();
+                    Console.WriteLine($"ChatID: {channelId}, UserID: {userId}");
+                }
             }
         }
 
@@ -488,23 +510,145 @@ namespace Naticord
             }
         }
 
-        private void PopulateServersTab()
+        private async Task PopulateServersTabAsync()
         {
             try
             {
-                dynamic guilds = GetApiResponse("users/@me/guilds");
-                allServers = new List<ListViewItem>();
+                // Get all guilds (servers) the user is part of
+                dynamic guilds = await GetApiResponseAsync("users/@me/guilds");
+                Console.WriteLine($"Count of guilds: {guilds.Count}");
+
+                serversPanel.Controls.Clear();
+                int yPosition = 0;
+
+                List<Task> imageDownloadTasks = new List<Task>();
+                HashSet<string> processedGuilds = new HashSet<string>(); // Track processed guilds
+
+                // List to hold individual tasks for guild processing
+                List<Task> guildTasks = new List<Task>();
+
                 foreach (var guild in guilds)
                 {
+                    // Skip invalid guilds
+                    if (guild == null || guild.id == null || guild.name == null)
+                    {
+                        continue;
+                    }
+
                     string guildName = guild.name.ToString();
-                    allServers.Add(new ListViewItem(guildName));
+                    string guildId = guild.id.ToString();
+
+                    // Skip duplicate guilds
+                    if (processedGuilds.Contains(guildId))
+                        continue;
+
+                    processedGuilds.Add(guildId);
+
+                    string iconHash = guild.icon;
+                    // Fetch guild details asynchronously
+                    Task<dynamic> guildDetailsTask = GetApiResponseAsync($"guilds/{guildId}");
+                    guildTasks.Add(guildDetailsTask);
+
+                    // Create and process the server control once the task completes
+                    guildDetailsTask.ContinueWith(async t =>
+                    {
+                        dynamic guildDetails = await t; // Await the result of the Task<dynamic>
+                        string description = string.IsNullOrEmpty(guildDetails?.description.ToString()) ? "No description found." : guildDetails.description.ToString();
+
+                        // Create the server control for the guild
+                        var serverControl = new FriendControl
+                        {
+                            Username = guildName,
+                            StatusContent = description,
+                            Tag = new Tuple<string, string>(guildId, guildName),
+                            Location = new Point(0, yPosition)
+                        };
+
+                        // Handle the server icon download
+                        if (!string.IsNullOrEmpty(iconHash))
+                        {
+                            string iconUrl = $"https://cdn.discordapp.com/icons/{guildId}/{iconHash}.png";
+                            var downloadTask = DownloadProfileImageAsync(iconUrl, serverControl);
+                            imageDownloadTasks.Add(downloadTask);
+                        }
+
+                        // Add the control to the UI thread (Invoke to ensure thread safety)
+                        await Task.Run(() =>
+                        {
+                            Invoke(new Action(() =>
+                            {
+                                yPosition += serverControl.Height;
+                                serversPanel.Controls.Add(serverControl);
+                                serverControl.MouseDoubleClick += ServerControl_DoubleClick;
+                            }));
+                        });
+                    });
                 }
-                serversList.Items.AddRange(allServers.ToArray());
+
+                // Run all guild tasks in parallel
+                await Task.WhenAll(guildTasks);
+
+                // Wait for all image download tasks to finish
+                await Task.WhenAll(imageDownloadTasks);
             }
             catch (WebException ex)
             {
                 ShowErrorMessage("Failed to retrieve server list", ex);
             }
+        }
+
+        private void ServerControl_DoubleClick(object sender, MouseEventArgs e)
+        {
+            FriendControl friendControl = sender as FriendControl;
+            if (friendControl != null)
+            {
+                var tag = friendControl.Tag as Tuple<string, string>;
+
+                if (tag != null)
+                {
+                    string guildIdString = tag.Item1;
+                    string guildName = tag.Item2;
+
+                    if (long.TryParse(guildIdString, out long guildId))
+                    {
+                        Console.WriteLine($"Opening server: {guildName} (ID: {guildId})");
+
+                        Server server = new Server(guildId, AccessToken);
+                        server.Show();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid guild ID format.");
+                    }
+                }
+            }
+        }
+
+        private async Task<int> GetMemberCountAsync(string guildId)
+        {
+            int memberCount = 0;
+            string lastUserId = null;
+
+            while (true)
+            {
+                string url = $"guilds/{guildId}/members";
+                if (!string.IsNullOrEmpty(lastUserId))
+                {
+                    url += $"?before={lastUserId}";
+                }
+
+                dynamic guildMembers = await GetApiResponseAsync(url);
+
+                if (guildMembers.Count == 0)
+                {
+                    break;
+                }
+
+                memberCount += guildMembers.Count;
+                lastUserId = guildMembers[guildMembers.Count - 1].user.id.ToString();
+            }
+
+            return memberCount;
         }
 
         private dynamic GetApiResponse(string endpoint)
@@ -544,49 +688,7 @@ namespace Naticord
             signin.Close();
         }
 
-        /*private void friendsList_DoubleClick(object sender, EventArgs e)
-        {
-            if (friendsPanel.SelectedItems.Count > 0)
-            {
-                string selectedChannel = friendsPanel.SelectedItems[0].Text;
-                string channelType = friendsPanel.SelectedItems[0].Tag as string;
-
-                if (channelType == "Direct Message")
-                {
-                    long chatID = GetChatID(selectedChannel);
-                    if (chatID >= 0)
-                    {
-                        DM dm = new DM(chatID, GetFriendID(selectedChannel), AccessToken, userPFP);
-                        dm.Show();
-                        Console.WriteLine($"Direct Message Chat ID: {chatID}");
-                    }
-                    else
-                    {
-                        MessageBox.Show("Unable to open Direct Message chat. Please try again later.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-                else if (channelType == "Group Message")
-                {
-                    long groupID = GetGroupID(selectedChannel);
-                    if (groupID >= 0)
-                    {
-                        Group groupChat = new Group(groupID, AccessToken, userPFP);
-                        groupChat.Show();
-                        Console.WriteLine($"Group Chat ID: {groupID}");
-                    }
-                    else
-                    {
-                        MessageBox.Show("Unable to open Group Message chat. Please try again later.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Unknown channel type.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }*/
-
-        private void serversList_DoubleClick(object sender, EventArgs ex)
+        /*private void serversList_DoubleClick(object sender, EventArgs ex)
         {
             if (serversList.SelectedItems.Count > 0)
             {
@@ -602,7 +704,7 @@ namespace Naticord
                     MessageBox.Show("Unable to open this Server", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        }
+        }*/
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -613,12 +715,12 @@ namespace Naticord
         /*private void FriendsSearchBar_TextChanged(object sender, EventArgs e)
         {
             FilterItems(friendSearchBar.Text.ToLower(), allFriends, friendsPanel);
-        }*/
+        }
 
         private void ServersSearchBar_TextChanged(object sender, EventArgs e)
         {
             FilterItems(serverSearchBar.Text.ToLower(), allServers, serversList);
-        }
+        }*/
 
         private void FilterItems(string searchText, List<ListViewItem> allItems, ListView listView)
         {
@@ -681,7 +783,7 @@ namespace Naticord
             {
                 ShowErrorMessage("Failed to leave group", ex);
             }
-        }*/
+        }
 
         private void LeaveServer(long serverID)
         {
@@ -699,6 +801,6 @@ namespace Naticord
             {
                 ShowErrorMessage("Failed to leave server", ex);
             }
-        }
+        }*/
     }
 }

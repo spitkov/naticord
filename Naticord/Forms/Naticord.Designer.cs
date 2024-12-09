@@ -33,14 +33,14 @@
             this.descriptionLabel = new System.Windows.Forms.Label();
             this.fsTabs = new System.Windows.Forms.TabControl();
             this.friendsTab = new System.Windows.Forms.TabPage();
+            this.friendsPanel = new System.Windows.Forms.Panel();
+            this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.friendSearchBar = new System.Windows.Forms.TextBox();
             this.serversTab = new System.Windows.Forms.TabPage();
             this.serverSearchBar = new System.Windows.Forms.TextBox();
-            this.serversList = new System.Windows.Forms.ListView();
             this.button1 = new System.Windows.Forms.Button();
             this.profilepicture = new System.Windows.Forms.PictureBox();
-            this.richTextBox1 = new System.Windows.Forms.RichTextBox();
-            this.friendsPanel = new System.Windows.Forms.Panel();
+            this.serversPanel = new System.Windows.Forms.Panel();
             this.fsTabs.SuspendLayout();
             this.friendsTab.SuspendLayout();
             this.serversTab.SuspendLayout();
@@ -98,6 +98,22 @@
             this.friendsTab.Text = "Direct Messages";
             this.friendsTab.UseVisualStyleBackColor = true;
             // 
+            // friendsPanel
+            // 
+            this.friendsPanel.AutoScroll = true;
+            this.friendsPanel.Location = new System.Drawing.Point(7, 32);
+            this.friendsPanel.Name = "friendsPanel";
+            this.friendsPanel.Size = new System.Drawing.Size(253, 332);
+            this.friendsPanel.TabIndex = 3;
+            // 
+            // richTextBox1
+            // 
+            this.richTextBox1.Location = new System.Drawing.Point(184, 140);
+            this.richTextBox1.Name = "richTextBox1";
+            this.richTextBox1.Size = new System.Drawing.Size(0, 0);
+            this.richTextBox1.TabIndex = 2;
+            this.richTextBox1.Text = "";
+            // 
             // friendSearchBar
             // 
             this.friendSearchBar.Location = new System.Drawing.Point(7, 6);
@@ -107,8 +123,8 @@
             // 
             // serversTab
             // 
+            this.serversTab.Controls.Add(this.serversPanel);
             this.serversTab.Controls.Add(this.serverSearchBar);
-            this.serversTab.Controls.Add(this.serversList);
             this.serversTab.Location = new System.Drawing.Point(4, 22);
             this.serversTab.Name = "serversTab";
             this.serversTab.Padding = new System.Windows.Forms.Padding(3);
@@ -123,25 +139,6 @@
             this.serverSearchBar.Name = "serverSearchBar";
             this.serverSearchBar.Size = new System.Drawing.Size(253, 20);
             this.serverSearchBar.TabIndex = 2;
-            // 
-            // serversList
-            // 
-            this.serversList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.serversList.BackColor = System.Drawing.Color.WhiteSmoke;
-            this.serversList.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.serversList.ForeColor = System.Drawing.SystemColors.WindowText;
-            this.serversList.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
-            this.serversList.HideSelection = false;
-            this.serversList.LabelWrap = false;
-            this.serversList.Location = new System.Drawing.Point(4, 32);
-            this.serversList.Name = "serversList";
-            this.serversList.Size = new System.Drawing.Size(257, 333);
-            this.serversList.TabIndex = 1;
-            this.serversList.UseCompatibleStateImageBehavior = false;
-            this.serversList.View = System.Windows.Forms.View.Tile;
-            this.serversList.DoubleClick += new System.EventHandler(this.serversList_DoubleClick);
             // 
             // button1
             // 
@@ -168,21 +165,13 @@
             this.profilepicture.TabIndex = 0;
             this.profilepicture.TabStop = false;
             // 
-            // richTextBox1
+            // serversPanel
             // 
-            this.richTextBox1.Location = new System.Drawing.Point(184, 140);
-            this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(0, 0);
-            this.richTextBox1.TabIndex = 2;
-            this.richTextBox1.Text = "";
-            // 
-            // friendsPanel
-            // 
-            this.friendsPanel.AutoScroll = true;
-            this.friendsPanel.Location = new System.Drawing.Point(7, 32);
-            this.friendsPanel.Name = "friendsPanel";
-            this.friendsPanel.Size = new System.Drawing.Size(253, 332);
-            this.friendsPanel.TabIndex = 3;
+            this.serversPanel.AutoScroll = true;
+            this.serversPanel.Location = new System.Drawing.Point(7, 32);
+            this.serversPanel.Name = "serversPanel";
+            this.serversPanel.Size = new System.Drawing.Size(253, 332);
+            this.serversPanel.TabIndex = 4;
             // 
             // Naticord
             // 
@@ -218,11 +207,11 @@
         private System.Windows.Forms.TabControl fsTabs;
         private System.Windows.Forms.TabPage friendsTab;
         private System.Windows.Forms.TabPage serversTab;
-        private System.Windows.Forms.ListView serversList;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.TextBox friendSearchBar;
         private System.Windows.Forms.TextBox serverSearchBar;
         private System.Windows.Forms.RichTextBox richTextBox1;
         private System.Windows.Forms.Panel friendsPanel;
+        private System.Windows.Forms.Panel serversPanel;
     }
 }

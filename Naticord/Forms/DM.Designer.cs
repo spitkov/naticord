@@ -135,6 +135,7 @@ namespace Naticord
             this.Name = "DM";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Naticord";
+            this.Load += new System.EventHandler(this.DM_Load);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.profilepicturefriend)).EndInit();
